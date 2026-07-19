@@ -5,6 +5,8 @@ Charta
 cli
 cloc
 COCOMO
+codegen
+coderabbit
 Datasette
 DDL
 dedupe

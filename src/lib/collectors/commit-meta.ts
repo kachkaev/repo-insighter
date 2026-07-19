@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { runGit } from "../git.ts";
-import type { Collector } from "./types.ts";
+import { arrayAt, stringAt } from "../json.ts";
+import type { Collector, Fact } from "./types.ts";
 
 const fieldSeparator = "\u001F";
 
@@ -100,4 +101,23 @@ export const commitMetaCollector: Collector = {
     runGit(["-C", repoRoot, "show", "-s", `--format=${format}`, sha]).pipe(
       Effect.map(parseCommitMeta),
     ),
+  normalize: (raw) => {
+    const facts: Fact[] = [
+      {
+        metric: "commits.count",
+        value: 1,
+        categories: { author: stringAt(raw, "authorEmail") },
+      },
+    ];
+    for (const coAuthor of arrayAt(raw, "coAuthors")) {
+      if (typeof coAuthor === "string") {
+        facts.push({
+          metric: "commits.coAuthor",
+          value: 1,
+          categories: { coAuthor },
+        });
+      }
+    }
+    return facts;
+  },
 };

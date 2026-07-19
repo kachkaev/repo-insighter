@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { runCommand } from "../git.ts";
-import type { Collector } from "./types.ts";
+import { numberAt, recordAt } from "../json.ts";
+import type { Collector, Fact } from "./types.ts";
 
 type LanguageStats = {
   files: number;
@@ -29,7 +30,7 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
     ? Object.fromEntries(Object.entries(value))
     : undefined;
 
-const numberAt = (record: Record<string, unknown>, key: string): number => {
+const numberField = (record: Record<string, unknown>, key: string): number => {
   const value = record[key];
   return typeof value === "number" ? value : 0;
 };
@@ -58,9 +59,9 @@ export const parseTokeiJson = (stdout: string): LanguagesOutput => {
 
     const reports = Array.isArray(info["reports"]) ? info["reports"] : [];
     const files = reports.length;
-    const code = numberAt(info, "code");
-    const comments = numberAt(info, "comments");
-    const blanks = numberAt(info, "blanks");
+    const code = numberField(info, "code");
+    const comments = numberField(info, "comments");
+    const blanks = numberField(info, "blanks");
     let lines = code + comments + blanks;
 
     // Fold embedded child languages (their lines live inside this language's
@@ -76,9 +77,9 @@ export const parseTokeiJson = (stdout: string): LanguagesOutput => {
           const childStats = childReport && asRecord(childReport["stats"]);
           if (childStats) {
             lines += statsLines({
-              code: numberAt(childStats, "code"),
-              comments: numberAt(childStats, "comments"),
-              blanks: numberAt(childStats, "blanks"),
+              code: numberField(childStats, "code"),
+              comments: numberField(childStats, "comments"),
+              blanks: numberField(childStats, "blanks"),
             });
           }
         }
@@ -122,4 +123,24 @@ export const languagesCollector: Collector = {
               : error,
           ),
         ),
+  normalize: (raw) => {
+    const facts: Fact[] = [];
+    for (const [language, stats] of Object.entries(
+      recordAt(raw, "byLanguage"),
+    )) {
+      facts.push(
+        {
+          metric: "languages.lines",
+          value: numberAt(stats, "lines"),
+          categories: { language },
+        },
+        {
+          metric: "languages.files",
+          value: numberAt(stats, "files"),
+          categories: { language },
+        },
+      );
+    }
+    return facts;
+  },
 };

@@ -10,6 +10,17 @@ type CollectContext = {
 };
 
 /**
+ * One numeric value at an intersection of open-ended categories — the unit of
+ * the metrics cube. Metric names are namespaced per collector by convention
+ * (e.g. "churn.added"); category keys are free-form strings.
+ */
+export type Fact = {
+  readonly metric: string;
+  readonly value: number;
+  readonly categories?: Readonly<Record<string, string>>;
+};
+
+/**
  * A collector extracts one kind of raw snapshot from a commit (the map phase).
  * Its output is persisted verbatim into the catalog; normalization into the
  * metrics cube is a separate concern handled by the `index` command.
@@ -31,6 +42,12 @@ export type Collector = {
    */
   readonly defaultSampling: SamplingPolicy;
   readonly collect: (context: CollectContext) => Effect.Effect<unknown, Error>;
+  /**
+   * Turns one raw output (as re-read from the catalog, hence `unknown`) into
+   * facts for the cube. Pure and cheap: `index` re-runs it freely, so
+   * normalization logic can improve without re-collecting.
+   */
+  readonly normalize: (raw: unknown) => readonly Fact[];
 };
 
 /** File extension used as a category key, e.g. ".ts"; files without one map to "(none)". */

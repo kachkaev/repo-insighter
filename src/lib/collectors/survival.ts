@@ -1,7 +1,13 @@
 import { Effect } from "effect";
 
 import { runGit } from "../git.ts";
-import { type Collector, extensionOf, isScannableSourceFile } from "./types.ts";
+import { arrayAt, numberAt, stringAt } from "../json.ts";
+import {
+  type Collector,
+  extensionOf,
+  type Fact,
+  isScannableSourceFile,
+} from "./types.ts";
 
 type SurvivalRow = {
   readonly extension: string;
@@ -112,4 +118,19 @@ export const survivalCollector: Collector = {
         fileCount: files.length,
       } satisfies SurvivalOutput;
     }),
+  normalize: (raw) => {
+    const facts: Fact[] = [];
+    for (const row of arrayAt(raw, "rows")) {
+      facts.push({
+        metric: "survival.lines",
+        value: numberAt(row, "lines"),
+        categories: {
+          extension: stringAt(row, "extension"),
+          author: stringAt(row, "authorEmail"),
+          cohort: stringAt(row, "cohortMonth"),
+        },
+      });
+    }
+    return facts;
+  },
 };
