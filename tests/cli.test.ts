@@ -31,7 +31,7 @@ const commitEnvironment = {
 };
 
 function createFixtureRepo(): string {
-  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insights-test-"));
+  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-test-"));
   runGit(repoPath, "init", "-b", "main");
 
   for (const [key, value] of Object.entries(commitEnvironment)) {
@@ -81,7 +81,7 @@ void test("scan summarizes a repository", () => {
 });
 
 void test("scan fails gracefully outside a git repository", () => {
-  const nonRepoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insights-no-"));
+  const nonRepoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-no-"));
 
   try {
     const result = runCli("scan", "--repo", nonRepoPath);
