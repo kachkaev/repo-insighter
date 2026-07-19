@@ -25,17 +25,25 @@ See [docs/specs](docs/specs/README.md) for the architecture being designed and [
 ```sh
 pnpm install
 pnpm build
-node dist/cli.js scan --repo /path/to/repo   # collect snapshots into .repo-insighter/
-node dist/cli.js status --repo /path/to/repo # show catalog coverage
+node dist/cli.js scan --repo /path/to/repo      # collect snapshots into .repo-insighter/
+node dist/cli.js index --repo /path/to/repo     # roll up into the metrics cube + dashboard data
+node dist/cli.js dashboard --repo /path/to/repo # serve the interactive dashboard
+node dist/cli.js status --repo /path/to/repo    # show catalog coverage
+node dist/cli.js collectors                     # list available collectors
+node dist/cli.js gc --repo /path/to/repo        # clean up the catalog interactively
 ```
 
-`scan` walks the repository's history and runs the built-in collectors against every commit, writing raw snapshots into a `.repo-insighter/` catalog inside the analyzed repo. It is resumable: re-running skips everything already collected. Collectors so far:
+`scan` walks the repository's history and runs collectors against every commit (or a sample, per collector), writing raw snapshots into a `.repo-insighter/` catalog inside the analyzed repo. It is resumable: re-running skips everything already collected, and bumping a collector's version invalidates only that collector's outputs. Checkout-based collectors use temporary detached worktrees — the analyzed repo's working tree is never touched. Collectors so far:
 
-- **commit-meta** — author/committer identities, dates, parents, subject
-- **churn** — lines added/deleted per commit, broken down by file extension
+- **commit-meta** — identities, dates, parents, subject and trailers (incl. AI co-authors)
+- **churn** — lines added/deleted per commit, by file extension
 - **file-types** — file count and bytes per extension at each commit's tree
+- **directives** — eslint-disable comments by rule (block disables tracked as gray areas) and `@ts-ignore`/`@ts-expect-error`/`@ts-nocheck`
+- **todo-comments** — TODO/FIXME/HACK/XXX counts
+- **languages** — tokei language/LOC breakdown (sampled monthly; markdown counted whole)
+- **survival** — `git blame` line survival by extension, author and age cohort (sampled monthly)
 
-The `index` step (normalizing snapshots into the SQLite metrics cube) is next; see the specs.
+`index` normalizes raw snapshots into `.repo-insighter/index/metrics.sqlite` (a facts-by-categories cube, rebuildable at any time) plus `dashboard.json`, and `dashboard` serves a local React app with interactive charts: languages over time, monthly commits with AI-assisted share, churn, lint-suppression trends, code survival by cohort and author, and more.
 
 ## Development
 

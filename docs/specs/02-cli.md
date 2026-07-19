@@ -1,15 +1,18 @@
 # CLI surface
 
-_Draft. `scan` and `status` are implemented; the rest is design._
+_Draft. `scan`, `index`, `dashboard`, `status`, `collectors` and `gc` are implemented; `report`/`query` remain design._
 
 ## Commands
 
-```sh
-npx repo-insighter scan [--repo [--collectors a,b] [--sample < path > ] < policy > ]
-npx repo-insighter index [--repo < path > ]
-npx repo-insighter status [--repo < path > ]
-npx repo-insighter report [--repo [--open] < path > ]
-npx repo-insighter query [--repo "<sql or dsl>" < path > ]
+```text
+npx repo-insighter scan       [--repo PATH] [--collectors a,b] [--sample POLICY] [--max-commits N] [--force]
+npx repo-insighter index      [--repo PATH]
+npx repo-insighter dashboard  [--repo PATH] [--port N] [--open]
+npx repo-insighter status     [--repo PATH]
+npx repo-insighter collectors
+npx repo-insighter gc         [--repo PATH] [--unreachable] [--stale] [--collectors a,b] [--dry-run] [--yes]
+npx repo-insighter report     [--repo PATH] [--open]         # future
+npx repo-insighter query      [--repo PATH] "<sql or dsl>"   # future
 ```
 
 - **`scan`** — the map phase. Enumerates commits, decides which (commit, collector) pairs still need work, runs collectors and fills the catalog with raw snapshots. Safe to interrupt and re-run; shows progress and an ETA. Flags to scope work: `--collectors`, `--sample` (see [collectors](04-collectors.md)), `--since`, `--max-commits`.
