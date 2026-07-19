@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { runGit } from "../git.ts";
-import { type Collector, isScannableSourceFile } from "./types.ts";
+import { recordAt } from "../json.ts";
+import { type Collector, type Fact, isScannableSourceFile } from "./types.ts";
 
 const markers = ["TODO", "FIXME", "HACK", "XXX"] as const;
 
@@ -56,4 +57,17 @@ export const todoCommentsCollector: Collector = {
       ],
       { okExitCodes: [1] },
     ).pipe(Effect.map((stdout) => aggregateTodoComments(stdout, sha.length))),
+  normalize: (raw) => {
+    const facts: Fact[] = [];
+    for (const [marker, count] of Object.entries(recordAt(raw, "byMarker"))) {
+      if (typeof count === "number") {
+        facts.push({
+          metric: "todos.count",
+          value: count,
+          categories: { marker },
+        });
+      }
+    }
+    return facts;
+  },
 };

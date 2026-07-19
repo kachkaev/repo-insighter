@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { runGit } from "../git.ts";
-import { type Collector, isScannableSourceFile } from "./types.ts";
+import { numberAt, recordAt } from "../json.ts";
+import { type Collector, type Fact, isScannableSourceFile } from "./types.ts";
 
 type RuleCounts = Record<string, number>;
 
@@ -178,4 +179,38 @@ export const directivesCollector: Collector = {
         ),
       ),
     ),
+  normalize: (raw) => {
+    const facts: Fact[] = [];
+    const kinds = [
+      ["eslintNextLine", "next-line"],
+      ["eslintLine", "line"],
+      ["eslintBlocks", "block"],
+    ] as const;
+    for (const [key, type] of kinds) {
+      for (const [rule, count] of Object.entries(
+        recordAt(recordAt(raw, key), "byRule"),
+      )) {
+        if (typeof count === "number") {
+          facts.push({
+            metric: "directives.eslint",
+            value: count,
+            categories: { type, rule },
+          });
+        }
+      }
+    }
+    facts.push({
+      metric: "directives.eslintBlockCoveredLines",
+      value: numberAt(recordAt(raw, "eslintBlocks"), "coveredLines"),
+    });
+    const ts = recordAt(raw, "tsDirectives");
+    for (const type of ["ignore", "expectError", "nocheck"] as const) {
+      facts.push({
+        metric: "directives.ts",
+        value: numberAt(ts, type),
+        categories: { type },
+      });
+    }
+    return facts;
+  },
 };

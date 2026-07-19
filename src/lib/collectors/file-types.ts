@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { runGit } from "../git.ts";
-import { type Collector, extensionOf } from "./types.ts";
+import { numberAt, recordAt } from "../json.ts";
+import { type Collector, extensionOf, type Fact } from "./types.ts";
 
 type FileTypeStats = {
   files: number;
@@ -59,4 +60,24 @@ export const fileTypesCollector: Collector = {
     runGit(["-C", repoRoot, "ls-tree", "-r", "-l", sha]).pipe(
       Effect.map(parseLsTree),
     ),
+  normalize: (raw) => {
+    const facts: Fact[] = [];
+    for (const [extension, stats] of Object.entries(
+      recordAt(raw, "byExtension"),
+    )) {
+      facts.push(
+        {
+          metric: "files.count",
+          value: numberAt(stats, "files"),
+          categories: { extension },
+        },
+        {
+          metric: "files.bytes",
+          value: numberAt(stats, "bytes"),
+          categories: { extension },
+        },
+      );
+    }
+    return facts;
+  },
 };

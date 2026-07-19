@@ -6,6 +6,7 @@ import { defineConfig } from "vite";
 const nodeBuiltins = [
   ...builtinModules,
   ...builtinModules.map((moduleName) => `node:${moduleName}`),
+  "node:sqlite",
 ];
 
 export default defineConfig({

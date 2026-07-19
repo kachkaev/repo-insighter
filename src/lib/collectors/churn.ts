@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { runGit } from "../git.ts";
-import { type Collector, extensionOf } from "./types.ts";
+import { numberAt, recordAt } from "../json.ts";
+import { type Collector, extensionOf, type Fact } from "./types.ts";
 
 type ChurnByExtension = {
   files: number;
@@ -71,4 +72,24 @@ export const churnCollector: Collector = {
     runGit(["-C", repoRoot, "show", "--numstat", "--format=", sha]).pipe(
       Effect.map(parseNumstat),
     ),
+  normalize: (raw) => {
+    const facts: Fact[] = [];
+    for (const [extension, stats] of Object.entries(
+      recordAt(raw, "byExtension"),
+    )) {
+      facts.push(
+        {
+          metric: "churn.added",
+          value: numberAt(stats, "added"),
+          categories: { extension },
+        },
+        {
+          metric: "churn.deleted",
+          value: numberAt(stats, "deleted"),
+          categories: { extension },
+        },
+      );
+    }
+    return facts;
+  },
 };
