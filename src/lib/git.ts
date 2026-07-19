@@ -33,14 +33,24 @@ const toError = (error: unknown) =>
   error instanceof Error ? error : new Error(String(error));
 
 /**
- * Runs a git command and captures its stdout. The repo path is passed via
- * `git -C` instead of a working directory to keep the invocation explicit.
+ * Runs a command and captures its stdout, failing on unexpected exit codes.
+ * For git, the repo path is passed via `git -C` instead of a working directory
+ * to keep the invocation explicit.
  */
-export const runGit = (args: readonly string[]): Effect.Effect<string, Error> =>
+export const runCommand = (
+  command: string,
+  args: readonly string[],
+  options?: {
+    /** Extra exit codes to treat as success (e.g. 1 for `git grep` with no matches). */
+    readonly okExitCodes?: readonly number[];
+    readonly cwd?: string;
+  },
+): Effect.Effect<string, Error> =>
   Effect.scoped(
     Effect.gen(function* () {
-      const handle = yield* ChildProcess.make("git", [...args], {
+      const handle = yield* ChildProcess.make(command, [...args], {
         stdin: "ignore",
+        ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
       });
 
       const { stdout, stderr, exitCode } = yield* Effect.all(
@@ -52,12 +62,18 @@ export const runGit = (args: readonly string[]): Effect.Effect<string, Error> =>
         { concurrency: "unbounded" },
       );
 
-      if (Number(exitCode) !== 0) {
+      const code = Number(exitCode);
+      if (code !== 0 && !options?.okExitCodes?.includes(code)) {
         return yield* Effect.fail(
-          new GitCommandError(args, Number(exitCode), stderr),
+          new GitCommandError([command, ...args], code, stderr),
         );
       }
 
       return stdout;
     }),
   ).pipe(Effect.mapError(toError), Effect.provide(NodeServices.layer));
+
+export const runGit = (
+  args: readonly string[],
+  options?: { readonly okExitCodes?: readonly number[] },
+): Effect.Effect<string, Error> => runCommand("git", args, options);

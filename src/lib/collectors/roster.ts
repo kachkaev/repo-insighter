@@ -1,12 +1,20 @@
 import { churnCollector } from "./churn.ts";
 import { commitMetaCollector } from "./commit-meta.ts";
+import { directivesCollector } from "./directives.ts";
 import { fileTypesCollector } from "./file-types.ts";
+import { languagesCollector } from "./languages.ts";
+import { survivalCollector } from "./survival.ts";
+import { todoCommentsCollector } from "./todo-comments.ts";
 import type { Collector } from "./types.ts";
 
 export const builtInCollectors: readonly Collector[] = [
   commitMetaCollector,
   churnCollector,
   fileTypesCollector,
+  directivesCollector,
+  todoCommentsCollector,
+  languagesCollector,
+  survivalCollector,
 ];
 
 export const resolveCollectors = (

@@ -1,0 +1,303 @@
+import { readdir, rm } from "node:fs/promises";
+import path from "node:path";
+
+import { NodeServices } from "@effect/platform-node";
+import { Console, Effect } from "effect";
+import { Prompt } from "effect/unstable/cli";
+
+import { catalogDirName, readCollectorVersion } from "./catalog.ts";
+import { builtInCollectors } from "./collectors/roster.ts";
+import { runGit } from "./git.ts";
+import { resolveRepoRoot } from "./scan.ts";
+
+const toError = (error: unknown) =>
+  error instanceof Error ? error : new Error(String(error));
+
+const readdirIfExists = (dirPath: string) =>
+  Effect.tryPromise({
+    try: async () => {
+      try {
+        return await readdir(dirPath);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    catch: toError,
+  });
+
+type StaleOutput = {
+  readonly sha: string;
+  readonly collectorName: string;
+  readonly reason: string;
+};
+
+type GcPlan = {
+  readonly catalogPath: string;
+  readonly commitsPath: string;
+  /** Catalog commit shas not reachable from HEAD. */
+  readonly unreachableShas: readonly string[];
+  /** Outputs whose collector is unknown or whose version is no longer current. */
+  readonly staleOutputs: readonly StaleOutput[];
+  /** Output counts per collector present in the catalog. */
+  readonly countsByCollector: ReadonlyMap<string, number>;
+};
+
+const buildPlan = (repoRoot: string): Effect.Effect<GcPlan, Error> =>
+  Effect.gen(function* () {
+    const catalogPath = path.join(repoRoot, catalogDirName);
+    const commitsPath = path.join(catalogPath, "commits");
+    const catalogShas = yield* readdirIfExists(commitsPath);
+
+    const reachable = new Set(
+      (yield* runGit(["-C", repoRoot, "rev-list", "HEAD"]))
+        .split("\n")
+        .filter(Boolean),
+    );
+
+    const currentVersions = new Map(
+      builtInCollectors.map((collector) => [collector.name, collector.version]),
+    );
+
+    const unreachableShas: string[] = [];
+    const staleOutputs: StaleOutput[] = [];
+    const countsByCollector = new Map<string, number>();
+
+    for (const sha of catalogShas) {
+      if (!reachable.has(sha)) {
+        unreachableShas.push(sha);
+        continue;
+      }
+
+      const collectorNames = yield* readdirIfExists(
+        path.join(commitsPath, sha),
+      );
+      for (const collectorName of collectorNames) {
+        countsByCollector.set(
+          collectorName,
+          (countsByCollector.get(collectorName) ?? 0) + 1,
+        );
+
+        const currentVersion = currentVersions.get(collectorName);
+        if (currentVersion === undefined) {
+          staleOutputs.push({
+            sha,
+            collectorName,
+            reason: "collector no longer exists",
+          });
+          continue;
+        }
+        const writtenVersion = yield* readCollectorVersion(
+          { repoRoot, rootPath: catalogPath },
+          sha,
+          collectorName,
+        );
+        if (writtenVersion !== currentVersion) {
+          staleOutputs.push({
+            sha,
+            collectorName,
+            reason: `version ${String(writtenVersion)} ≠ current ${currentVersion}`,
+          });
+        }
+      }
+    }
+
+    return {
+      catalogPath,
+      commitsPath,
+      unreachableShas,
+      staleOutputs,
+      countsByCollector,
+    };
+  });
+
+const removePaths = (
+  paths: readonly string[],
+  dryRun: boolean,
+): Effect.Effect<void, Error> =>
+  dryRun
+    ? Effect.void
+    : Effect.forEach(
+        paths,
+        (target) =>
+          Effect.tryPromise({
+            try: () => rm(target, { force: true, recursive: true }),
+            catch: toError,
+          }),
+        { concurrency: 8, discard: true },
+      );
+
+/** Removes commit dirs that became empty after collector-output removal. */
+const pruneEmptyCommitDirs = (
+  commitsPath: string,
+): Effect.Effect<number, Error> =>
+  Effect.gen(function* () {
+    let pruned = 0;
+    for (const sha of yield* readdirIfExists(commitsPath)) {
+      const commitDir = path.join(commitsPath, sha);
+      if ((yield* readdirIfExists(commitDir)).length === 0) {
+        yield* Effect.tryPromise({
+          try: () => rm(commitDir, { force: true, recursive: true }),
+          catch: toError,
+        });
+        pruned += 1;
+      }
+    }
+    return pruned;
+  });
+
+export const runGc = ({
+  repoPath,
+  unreachable,
+  stale,
+  collectorNames,
+  dryRun = false,
+  yes = false,
+}: {
+  readonly repoPath: string;
+  readonly unreachable?: boolean | undefined;
+  readonly stale?: boolean | undefined;
+  readonly collectorNames?: string | undefined;
+  readonly dryRun?: boolean | undefined;
+  readonly yes?: boolean | undefined;
+}): Effect.Effect<void, Error> =>
+  Effect.gen(function* () {
+    const repoRoot = yield* resolveRepoRoot(repoPath);
+    const plan = yield* buildPlan(repoRoot);
+
+    const requestedCollectors = (collectorNames ?? "")
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    const anyFlagGiven =
+      unreachable === true || stale === true || requestedCollectors.length > 0;
+
+    let removeUnreachable = unreachable === true;
+    let removeStale = stale === true;
+    let collectorsToRemove = requestedCollectors;
+
+    if (!anyFlagGiven) {
+      // Interactive mode: show what exists and let the user pick.
+      type Action =
+        | { readonly kind: "unreachable" }
+        | { readonly kind: "stale" }
+        | { readonly kind: "collector"; readonly name: string };
+
+      const choices: Array<{ title: string; value: Action }> = [];
+      if (plan.unreachableShas.length > 0) {
+        choices.push({
+          title: `Data for ${plan.unreachableShas.length} commits no longer reachable from HEAD`,
+          value: { kind: "unreachable" },
+        });
+      }
+      if (plan.staleOutputs.length > 0) {
+        choices.push({
+          title: `${plan.staleOutputs.length} stale collector outputs (old versions or removed collectors)`,
+          value: { kind: "stale" },
+        });
+      }
+      for (const [name, count] of [
+        ...plan.countsByCollector.entries(),
+      ].toSorted(([left], [right]) => left.localeCompare(right))) {
+        choices.push({
+          title: `All ${count} outputs of collector "${name}"`,
+          value: { kind: "collector", name },
+        });
+      }
+
+      if (choices.length === 0) {
+        yield* Console.log("Catalog is clean — nothing to garbage-collect.");
+        return;
+      }
+
+      const selected = yield* Prompt.run(
+        Prompt.multiSelect<Action>({
+          message: "What should be removed from the catalog?",
+          choices,
+        }),
+      ).pipe(Effect.mapError(() => new Error("Aborted.")));
+
+      if (selected.length === 0) {
+        yield* Console.log("Nothing selected — catalog left untouched.");
+        return;
+      }
+
+      removeUnreachable = selected.some(
+        (action) => action.kind === "unreachable",
+      );
+      removeStale = selected.some((action) => action.kind === "stale");
+      collectorsToRemove = selected.flatMap((action) =>
+        action.kind === "collector" ? [action.name] : [],
+      );
+    }
+
+    const targets: string[] = [];
+    const reportLines: string[] = [];
+
+    if (removeUnreachable && plan.unreachableShas.length > 0) {
+      targets.push(
+        ...plan.unreachableShas.map((sha) => path.join(plan.commitsPath, sha)),
+      );
+      reportLines.push(
+        `${plan.unreachableShas.length} unreachable commit folders`,
+      );
+    }
+    if (removeStale && plan.staleOutputs.length > 0) {
+      targets.push(
+        ...plan.staleOutputs.map((output) =>
+          path.join(plan.commitsPath, output.sha, output.collectorName),
+        ),
+      );
+      reportLines.push(`${plan.staleOutputs.length} stale collector outputs`);
+    }
+    for (const name of collectorsToRemove) {
+      const count = plan.countsByCollector.get(name) ?? 0;
+      if (count === 0) {
+        yield* Console.log(
+          `Collector "${name}" has no outputs in the catalog.`,
+        );
+        continue;
+      }
+      const shas = yield* readdirIfExists(plan.commitsPath);
+      for (const sha of shas) {
+        targets.push(path.join(plan.commitsPath, sha, name));
+      }
+      reportLines.push(`${count} outputs of collector "${name}"`);
+    }
+
+    if (targets.length === 0) {
+      yield* Console.log("Nothing to garbage-collect.");
+      return;
+    }
+
+    const summary = `Removing ${reportLines.join(", ")}.`;
+    if (dryRun) {
+      yield* Console.log(`[dry-run] ${summary}`);
+      return;
+    }
+
+    if (!yes) {
+      const confirmed = yield* Prompt.run(
+        Prompt.confirm({ message: summary.replace(/\.$/, "?") }),
+      ).pipe(Effect.mapError(() => new Error("Aborted.")));
+      if (!confirmed) {
+        yield* Console.log("Aborted — catalog left untouched.");
+        return;
+      }
+    }
+
+    yield* removePaths(targets, false);
+    const pruned = yield* pruneEmptyCommitDirs(plan.commitsPath);
+
+    yield* Console.log(
+      `${summary}${pruned > 0 ? ` Pruned ${pruned} empty commit folders.` : ""} ` +
+        "Run `repo-insighter index` to refresh rollups.",
+    );
+  }).pipe(Effect.provide(NodeServices.layer));

@@ -9,6 +9,12 @@ import {
 import { resolveCollectors } from "./collectors/roster.ts";
 import type { Collector } from "./collectors/types.ts";
 import { GitCommandError, runGit } from "./git.ts";
+import {
+  parseSamplingPolicy,
+  sampleCommits,
+  type SamplingPolicy,
+} from "./sampling.ts";
+import { withTemporaryWorktree } from "./worktree.ts";
 
 export type CommitMeta = {
   readonly hash: string;
@@ -97,62 +103,115 @@ export const summarizeCommits = (
   };
 };
 
+const runCollector = ({
+  catalog,
+  sha,
+  collector,
+  worktreePath,
+}: {
+  readonly catalog: Catalog;
+  readonly sha: string;
+  readonly collector: Collector;
+  readonly worktreePath?: string | undefined;
+}): Effect.Effect<void, Error> =>
+  Effect.gen(function* () {
+    const startedAt = Date.now();
+    const output = yield* collector
+      .collect({ repoRoot: catalog.repoRoot, sha, worktreePath })
+      .pipe(
+        Effect.mapError(
+          (error) =>
+            new Error(
+              `Collector ${collector.name} failed on ${sha.slice(0, 10)}: ${error.message}`,
+            ),
+        ),
+      );
+    yield* writeCollectorOutput({
+      catalog,
+      sha,
+      collector,
+      output,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+
 const collectCommit = ({
   catalog,
   sha,
   collectors,
+  force,
 }: {
   readonly catalog: Catalog;
   readonly sha: string;
   readonly collectors: readonly Collector[];
+  readonly force: boolean;
 }): Effect.Effect<{ run: number; skipped: number }, Error> =>
   Effect.gen(function* () {
-    let run = 0;
+    const pending: Collector[] = [];
     let skipped = 0;
 
     for (const collector of collectors) {
-      if (yield* isCollected(catalog, sha, collector)) {
+      if (!force && (yield* isCollected(catalog, sha, collector))) {
         skipped += 1;
-        continue;
+      } else {
+        pending.push(collector);
       }
-
-      const startedAt = Date.now();
-      const output = yield* collector
-        .collect({ repoRoot: catalog.repoRoot, sha })
-        .pipe(
-          Effect.mapError(
-            (error) =>
-              new Error(
-                `Collector ${collector.name} failed on ${sha.slice(0, 10)}: ${error.message}`,
-              ),
-          ),
-        );
-      yield* writeCollectorOutput({
-        catalog,
-        sha,
-        collector,
-        output,
-        durationMs: Date.now() - startedAt,
-      });
-      run += 1;
     }
 
-    return { run, skipped };
+    const direct = pending.filter(
+      (collector) => collector.strategy !== "worktree",
+    );
+    const needingWorktree = pending.filter(
+      (collector) => collector.strategy === "worktree",
+    );
+
+    for (const collector of direct) {
+      yield* runCollector({ catalog, sha, collector });
+    }
+
+    if (needingWorktree.length > 0) {
+      yield* withTemporaryWorktree(catalog.repoRoot, sha, (worktreePath) =>
+        Effect.forEach(
+          needingWorktree,
+          (collector) =>
+            runCollector({ catalog, sha, collector, worktreePath }),
+          { discard: true },
+        ),
+      );
+    }
+
+    return { run: pending.length, skipped };
   });
+
+const samplingLabel = (policy: SamplingPolicy): string =>
+  typeof policy === "object" ? `every-nth:${policy.everyNth}` : policy;
 
 export const runScan = ({
   repoPath,
   collectorNames,
   maxCommits,
+  sample,
+  force = false,
 }: {
   readonly repoPath: string;
   readonly collectorNames?: string | undefined;
   readonly maxCommits?: number | undefined;
+  readonly sample?: string | undefined;
+  readonly force?: boolean | undefined;
 }): Effect.Effect<void, Error> =>
   Effect.gen(function* () {
     const collectors = resolveCollectors(collectorNames);
     if (collectors instanceof Error) {
       return yield* Effect.fail(collectors);
+    }
+
+    let sampleOverride: SamplingPolicy | undefined;
+    if (sample !== undefined) {
+      const parsed = parseSamplingPolicy(sample);
+      if (parsed instanceof Error) {
+        return yield* Effect.fail(parsed);
+      }
+      sampleOverride = parsed;
     }
 
     const repoRoot = yield* resolveRepoRoot(repoPath);
@@ -163,6 +222,26 @@ export const runScan = ({
     const catalog = yield* openCatalog(repoRoot);
     const summary = summarizeCommits(commits);
 
+    const plans = collectors.map((collector) => {
+      const policy = sampleOverride ?? collector.defaultSampling;
+      return {
+        collector,
+        policy,
+        shas: new Set(
+          sampleCommits(selected, policy).map((commit) => commit.hash),
+        ),
+      };
+    });
+
+    yield* Console.log(
+      `Plan: ${plans
+        .map(
+          (plan) =>
+            `${plan.collector.name} → ${plan.shas.size} commits (${samplingLabel(plan.policy)})`,
+        )
+        .join(", ")}`,
+    );
+
     let totalRun = 0;
     let totalSkipped = 0;
     let processed = 0;
@@ -170,7 +249,14 @@ export const runScan = ({
     yield* Effect.forEach(
       selected,
       (commit) =>
-        collectCommit({ catalog, sha: commit.hash, collectors }).pipe(
+        collectCommit({
+          catalog,
+          sha: commit.hash,
+          collectors: plans
+            .filter((plan) => plan.shas.has(commit.hash))
+            .map((plan) => plan.collector),
+          force,
+        }).pipe(
           Effect.tap(({ run, skipped }) =>
             Effect.gen(function* () {
               totalRun += run;
@@ -193,9 +279,6 @@ export const runScan = ({
         `Commits: ${summary.commitCount} (${summary.authorCount} authors, ${
           summary.firstCommitDate ?? "n/a"
         } — ${summary.lastCommitDate ?? "n/a"})`,
-        `Scanned: ${selected.length} commits with ${collectors
-          .map((collector) => collector.name)
-          .join(", ")}`,
         `Collector runs: ${totalRun} new, ${totalSkipped} already collected`,
         `Catalog: ${catalog.rootPath}`,
       ].join("\n"),

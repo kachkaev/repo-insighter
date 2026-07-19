@@ -15,7 +15,13 @@ const format = [
   "%cI",
   "%P",
   "%s",
+  "%(trailers:unfold=true)",
 ].join("%x1f");
+
+export type CommitTrailer = {
+  readonly key: string;
+  readonly value: string;
+};
 
 export type CommitMetaOutput = {
   readonly sha: string;
@@ -27,6 +33,27 @@ export type CommitMetaOutput = {
   readonly committedAt: string;
   readonly parents: readonly string[];
   readonly subject: string;
+  readonly trailers: readonly CommitTrailer[];
+  /** Values of Co-authored-by trailers, verbatim (e.g. "Name <email>"). */
+  readonly coAuthors: readonly string[];
+};
+
+export const parseTrailers = (raw: string): CommitTrailer[] => {
+  const trailers: CommitTrailer[] = [];
+
+  for (const line of raw.split("\n")) {
+    const colonIndex = line.indexOf(":");
+    if (colonIndex <= 0) {
+      continue;
+    }
+    const key = line.slice(0, colonIndex).trim();
+    const value = line.slice(colonIndex + 1).trim();
+    if (key && value) {
+      trailers.push({ key, value });
+    }
+  }
+
+  return trailers;
 };
 
 export const parseCommitMeta = (stdout: string): CommitMetaOutput => {
@@ -40,7 +67,10 @@ export const parseCommitMeta = (stdout: string): CommitMetaOutput => {
     committedAt = "",
     parentsRaw = "",
     subject = "",
+    trailersRaw = "",
   ] = stdout.trim().split(fieldSeparator);
+
+  const trailers = parseTrailers(trailersRaw);
 
   return {
     sha,
@@ -52,13 +82,20 @@ export const parseCommitMeta = (stdout: string): CommitMetaOutput => {
     committedAt,
     parents: parentsRaw.split(" ").filter(Boolean),
     subject,
+    trailers,
+    coAuthors: trailers
+      .filter((trailer) => trailer.key.toLowerCase() === "co-authored-by")
+      .map((trailer) => trailer.value),
   };
 };
 
 export const commitMetaCollector: Collector = {
   name: "commit-meta",
-  version: "1",
+  description:
+    "Author/committer identities, dates, parents, subject and trailers (incl. co-authors)",
+  version: "2",
   strategy: "log",
+  defaultSampling: "all",
   collect: ({ repoRoot, sha }) =>
     runGit(["-C", repoRoot, "show", "-s", `--format=${format}`, sha]).pipe(
       Effect.map(parseCommitMeta),
