@@ -27,11 +27,13 @@ JVM
 Kachkaev
 knip
 libsql
+lockfiles
 maat
 matplotlib
 MCP
 mergestat
 msgpackr
+mts
 npmjs
 numstat
 onefetch

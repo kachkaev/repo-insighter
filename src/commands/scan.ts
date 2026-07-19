@@ -24,6 +24,18 @@ export const scanCommand = Command.make("scan", {
       ),
     ),
   ),
+  sample: Flag.optional(
+    Flag.string("sample").pipe(
+      Flag.withDescription(
+        "Override every collector's sampling policy: all, weekly, monthly, quarterly or every-nth:<n>",
+      ),
+    ),
+  ),
+  force: Flag.boolean("force").pipe(
+    Flag.withDescription(
+      "Re-collect even where outputs with the current collector version already exist",
+    ),
+  ),
 }).pipe(
   Command.withDescription(
     "Collect raw per-commit snapshots into the catalog (resumable; already-collected commits are skipped)",
@@ -33,6 +45,8 @@ export const scanCommand = Command.make("scan", {
       repoPath: config.repoPath,
       collectorNames: Option.getOrUndefined(config.collectorNames),
       maxCommits: Option.getOrUndefined(config.maxCommits),
+      sample: Option.getOrUndefined(config.sample),
+      force: config.force,
     }),
   ),
 );

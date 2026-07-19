@@ -111,15 +111,25 @@ export const openCatalog = (repoRoot: string): Effect.Effect<Catalog, Error> =>
 const collectorDir = (catalog: Catalog, sha: string, collectorName: string) =>
   path.join(catalog.rootPath, "commits", sha, collectorName);
 
+/** Reads the version recorded in a collector's sidecar, if any. */
+export const readCollectorVersion = (
+  catalog: Catalog,
+  sha: string,
+  collectorName: string,
+): Effect.Effect<unknown, Error> =>
+  readJsonIfExists(
+    path.join(collectorDir(catalog, sha, collectorName), "collector.json"),
+  ).pipe(Effect.map(versionOf));
+
 /** A (commit, collector) pair is done when a sidecar with a matching version exists. */
 export const isCollected = (
   catalog: Catalog,
   sha: string,
   collector: Collector,
 ): Effect.Effect<boolean, Error> =>
-  readJsonIfExists(
-    path.join(collectorDir(catalog, sha, collector.name), "collector.json"),
-  ).pipe(Effect.map((sidecar) => versionOf(sidecar) === collector.version));
+  readCollectorVersion(catalog, sha, collector.name).pipe(
+    Effect.map((version) => version === collector.version),
+  );
 
 export const writeCollectorOutput = ({
   catalog,

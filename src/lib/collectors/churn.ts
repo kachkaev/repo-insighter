@@ -62,8 +62,11 @@ export const parseNumstat = (stdout: string): ChurnOutput => {
  */
 export const churnCollector: Collector = {
   name: "churn",
+  description:
+    "Lines added/deleted per commit vs first parent, by file extension",
   version: "1",
   strategy: "log",
+  defaultSampling: "all",
   collect: ({ repoRoot, sha }) =>
     runGit(["-C", repoRoot, "show", "--numstat", "--format=", sha]).pipe(
       Effect.map(parseNumstat),

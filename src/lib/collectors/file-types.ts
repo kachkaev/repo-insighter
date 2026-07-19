@@ -51,8 +51,10 @@ export const parseLsTree = (stdout: string): FileTypesOutput => {
  */
 export const fileTypesCollector: Collector = {
   name: "file-types",
+  description: "File count and bytes per extension at each commit's tree",
   version: "1",
   strategy: "tree",
+  defaultSampling: "all",
   collect: ({ repoRoot, sha }) =>
     runGit(["-C", repoRoot, "ls-tree", "-r", "-l", sha]).pipe(
       Effect.map(parseLsTree),

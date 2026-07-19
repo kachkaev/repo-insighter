@@ -74,15 +74,29 @@ void test("scan help exposes the flags", () => {
   assert.match(result.stdout, /--max-commits integer/);
 });
 
+// tokei isn't guaranteed on CI runners, so e2e scans avoid the languages collector.
+const ciSafeCollectors =
+  "commit-meta,churn,file-types,directives,todo-comments,survival";
+
 void test("scan collects snapshots into the catalog and is resumable", () => {
   const repoPath = createFixtureRepo();
 
   try {
-    const firstRun = runCli("scan", "--repo", repoPath);
+    const firstRun = runCli(
+      "scan",
+      "--repo",
+      repoPath,
+      "--collectors",
+      ciSafeCollectors,
+    );
 
     assert.equal(firstRun.status, 0, firstRun.stderr);
     assert.match(firstRun.stdout, /Commits: 2 \(1 authors/);
-    assert.match(firstRun.stdout, /Collector runs: 6 new, 0 already collected/);
+    // 5 all-sampled collectors × 2 commits + survival on 1 monthly sample.
+    assert.match(
+      firstRun.stdout,
+      /Collector runs: 11 new, 0 already collected/,
+    );
 
     const headSha = runGit(repoPath, "rev-parse", "HEAD").trim();
     const commitDir = path.join(
@@ -121,11 +135,17 @@ void test("scan collects snapshots into the catalog and is resumable", () => {
     );
     assert.match(fileTypes, /"totalFiles": 2/);
 
-    const secondRun = runCli("scan", "--repo", repoPath);
+    const secondRun = runCli(
+      "scan",
+      "--repo",
+      repoPath,
+      "--collectors",
+      ciSafeCollectors,
+    );
     assert.equal(secondRun.status, 0, secondRun.stderr);
     assert.match(
       secondRun.stdout,
-      /Collector runs: 0 new, 6 already collected/,
+      /Collector runs: 0 new, 11 already collected/,
     );
   } finally {
     rmSync(repoPath, { force: true, recursive: true });
