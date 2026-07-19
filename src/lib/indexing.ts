@@ -12,11 +12,22 @@ import { listCommits, resolveRepoRoot } from "./scan.ts";
 const toError = (error: unknown) =>
   error instanceof Error ? error : new Error(String(error));
 
-/** Heuristic for AI coding assistants appearing as commit co-authors. */
+/**
+ * Heuristic for AI coding assistants appearing as commit co-authors.
+ * Automation bots (renovate, dependabot, github-actions, …) are deliberately
+ * not "AI": they don't reflect assisted authorship.
+ */
 export const isAiCoAuthor = (coAuthor: string): boolean =>
-  /claude|copilot|cursor|chatgpt|openai|gemini|aider|devin|coderabbit|codegen|sweep|\[bot\]/i.test(
+  !/renovate|dependabot|github-actions/i.test(coAuthor) &&
+  /claude|copilot|cursor|chatgpt|openai|gemini|aider|devin|coderabbit|codegen|sweep|windsurf/i.test(
     coAuthor,
   );
+
+/** "12345+alice@users.noreply.github.com" → "alice"; other emails unchanged. */
+export const prettifyAuthorEmail = (email: string): string => {
+  const match = /^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/.exec(email);
+  return match?.[1] ?? email;
+};
 
 /** "Claude Fable 5 <noreply@anthropic.com>" → "Claude Fable 5" */
 export const coAuthorIdentity = (coAuthor: string): string => {
@@ -191,7 +202,11 @@ const buildDashboardData = (
       sha: commit.sha.slice(0, 10),
       date: commit.date,
       byCohort: groupMetric(commit, "survival.lines", "cohort"),
-      byAuthor: groupMetric(commit, "survival.lines", "author"),
+      byAuthor: Object.fromEntries(
+        Object.entries(groupMetric(commit, "survival.lines", "author")).map(
+          ([author, lines]) => [prettifyAuthorEmail(author), lines],
+        ),
+      ),
       byExtension: groupMetric(commit, "survival.lines", "extension"),
     }));
 
@@ -219,7 +234,10 @@ const buildDashboardData = (
   const authors = [...authorMap.entries()]
     .toSorted(([, left], [, right]) => right.commits - left.commits)
     .slice(0, 25)
-    .map(([email, bucket]) => ({ email, ...bucket }));
+    .map(([email, bucket]) => ({
+      email: prettifyAuthorEmail(email),
+      ...bucket,
+    }));
 
   const aiIdentityMap = new Map<string, number>();
   for (const commit of commits) {

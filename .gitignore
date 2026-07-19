@@ -22,3 +22,6 @@
 
 ## Repo insights catalog (when running the tool against this repository)
 /.repo-insighter/
+
+## Local Claude Code config (contains machine-specific paths)
+/.claude/

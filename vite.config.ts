@@ -11,7 +11,10 @@ const nodeBuiltins = [
 
 export default defineConfig({
   build: {
-    emptyOutDir: true,
+    // dist/ is shared with the dashboard build (dist/dashboard), which
+    // empties only its own subfolder; emptying all of dist here would
+    // delete it.
+    emptyOutDir: false,
     lib: {
       entry: "src/cli.ts",
       fileName: () => "cli.js",
