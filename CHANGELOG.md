@@ -1,5 +1,11 @@
 # repo-insighter
 
+## 0.0.2
+
+### Patch Changes
+
+- 69bfbe4: Bare `npx repo-insighter` now runs the whole pipeline — scan, index and dashboard (with browser auto-open) — and scan progress includes a rate/ETA estimate.
+
 ## 0.0.1
 
 ### Patch Changes
