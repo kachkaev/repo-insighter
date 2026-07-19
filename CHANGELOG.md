@@ -1,5 +1,11 @@
 # repo-insighter
 
+## 0.0.3
+
+### Patch Changes
+
+- 4181c5b: New `report` command: exports the dashboard as one self-contained HTML file (charts, data and styles inlined) that opens anywhere without installing anything.
+
 ## 0.0.2
 
 ### Patch Changes

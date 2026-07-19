@@ -1,6 +1,6 @@
 {
   "name": "repo-insighter",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Derive insights from a git repository's history: per-commit snapshots, an indexed metrics catalog and material for visualizations",
   "keywords": [
     "git",
