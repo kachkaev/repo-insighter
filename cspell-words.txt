@@ -60,6 +60,8 @@ tsc
 uncazzy
 VCS
 VCSs
+visx
 Vite
 worktree
 worktrees
+xdg

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dist/cli.js", "dashboard", "--port", "4936"],
+      "port": 4936
+    }
+  ]
+}

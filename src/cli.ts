@@ -4,6 +4,7 @@ import { Command } from "effect/unstable/cli";
 
 import packageJson from "../package.json" with { type: "json" };
 import { collectorsCommand } from "./commands/collectors.ts";
+import { dashboardCommand } from "./commands/dashboard.ts";
 import { gcCommand } from "./commands/gc.ts";
 import { indexCommand } from "./commands/index-command.ts";
 import { scanCommand } from "./commands/scan.ts";
@@ -16,6 +17,7 @@ const cli = Command.make("repo-insighter").pipe(
   Command.withSubcommands([
     scanCommand,
     indexCommand,
+    dashboardCommand,
     statusCommand,
     collectorsCommand,
     gcCommand,
