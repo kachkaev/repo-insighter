@@ -196,3 +196,57 @@ void test("scan fails gracefully outside a git repository", () => {
     rmSync(nonRepoPath, { force: true, recursive: true });
   }
 });
+
+void test("bare invocation runs the whole pipeline and serves the dashboard", async (testContext) => {
+  if (
+    !existsSync(path.join(rootDirectory, "dist", "dashboard", "index.html"))
+  ) {
+    testContext.skip("dist/dashboard not built");
+    return;
+  }
+
+  const repoPath = createFixtureRepo();
+  const port = 4900 + Math.floor(Math.random() * 90);
+  const { spawn } = await import("node:child_process");
+
+  const pipeline = spawn(
+    process.execPath,
+    ["src/cli.ts", "--repo", repoPath, "--port", String(port), "--no-open"],
+    { cwd: rootDirectory, stdio: ["ignore", "pipe", "pipe"] },
+  );
+
+  try {
+    let output = "";
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`Timed out. Output so far:\n${output}`));
+      }, 30_000);
+      pipeline.stdout.on("data", (chunk: Buffer) => {
+        output += chunk.toString();
+        if (output.includes("Serving on")) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+      pipeline.stderr.on("data", (chunk: Buffer) => {
+        output += chunk.toString();
+      });
+      pipeline.on("exit", () => {
+        clearTimeout(timer);
+        reject(new Error(`Pipeline exited early. Output:\n${output}`));
+      });
+    });
+
+    assert.match(output, /Step 1\/3/);
+    assert.match(output, /Step 2\/3/);
+    assert.match(output, /Indexed 2 commits/);
+
+    const response = await fetch(`http://localhost:${port}/dashboard.json`);
+    assert.equal(response.ok, true);
+    const body = await response.text();
+    assert.match(body, /"commitCount":2/);
+  } finally {
+    pipeline.kill();
+    rmSync(repoPath, { force: true, recursive: true });
+  }
+});

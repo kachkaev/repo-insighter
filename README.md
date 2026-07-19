@@ -10,8 +10,10 @@ Point the tool at any git repository and get an explorable catalog of insights d
 
 ```sh
 cd /path/to/your/repo
-npx repo-insighter scan
+npx repo-insighter
 ```
+
+One command runs the whole pipeline — scan, index, dashboard — and opens the results in your browser.
 
 - **Map**: walk the repo's commits (all or sampled) and let pluggable collectors capture raw snapshots per commit — language/LOC breakdowns, author stats, lint diagnostics and more.
 - **Reduce**: index those snapshots into a local metrics store shaped like a data cube — numbers at intersections of open-ended categories (author, language, date, lint rule, …).
@@ -27,6 +29,7 @@ Run from inside the repository you want to analyze (or pass `--repo /path/to/rep
 
 ```sh
 cd /path/to/your/repo
+npx repo-insighter            # the whole pipeline: scan + index + dashboard
 npx repo-insighter scan       # collect snapshots into .repo-insighter/
 npx repo-insighter index      # roll up into the metrics cube + dashboard data
 npx repo-insighter dashboard  # serve the interactive dashboard

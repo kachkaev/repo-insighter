@@ -5,6 +5,7 @@ _Draft. `scan`, `index`, `dashboard`, `status`, `collectors` and `gc` are implem
 ## Commands
 
 ```text
+npx repo-insighter            [--repo PATH] [--port N] [--no-open]   # scan + index + dashboard
 npx repo-insighter scan       [--repo PATH] [--collectors a,b] [--sample POLICY] [--max-commits N] [--force]
 npx repo-insighter index      [--repo PATH]
 npx repo-insighter dashboard  [--repo PATH] [--port N] [--open]
@@ -21,7 +22,7 @@ npx repo-insighter query      [--repo PATH] "<sql or dsl>"   # future
 - **`report`** — generates human-facing output from the cube (initial idea: a self-contained HTML file with charts, à la git-truck/gitstats; format TBD, see open questions).
 - **`query`** — escape hatch: run a query against the cube and print rows (also the likely seam for AI/MCP integration later).
 
-A future `repo-insighter` with no arguments could run `scan` + `index` + `report` in sequence — the zero-config happy path.
+Bare `repo-insighter` with no subcommand runs `scan` + `index` + `dashboard` in sequence — the zero-config happy path.
 
 ## Conventions
 

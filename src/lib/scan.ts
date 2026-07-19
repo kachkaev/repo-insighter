@@ -272,6 +272,18 @@ export const runScan = ({
     let totalSkipped = 0;
     let processed = 0;
     const failures: string[] = [];
+    const startedAt = Date.now();
+
+    const formatEta = (): string => {
+      const elapsedSeconds = (Date.now() - startedAt) / 1000;
+      const rate = processed / Math.max(1, elapsedSeconds);
+      const remainingSeconds = Math.round(
+        (selected.length - processed) / Math.max(0.01, rate),
+      );
+      const minutes = Math.floor(remainingSeconds / 60);
+      const seconds = remainingSeconds % 60;
+      return `${Math.round(rate)}/s, ~${minutes > 0 ? `${minutes}m ` : ""}${seconds}s left`;
+    };
 
     yield* Effect.forEach(
       selected,
@@ -292,7 +304,7 @@ export const runScan = ({
               processed += 1;
               if (processed % 250 === 0) {
                 yield* Console.log(
-                  `Scanned ${processed}/${selected.length} commits…`,
+                  `Scanned ${processed}/${selected.length} commits (${formatEta()})…`,
                 );
               }
             }),
