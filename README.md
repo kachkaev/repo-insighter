@@ -1,4 +1,4 @@
-# repo-insights
+# repo-insighter
 
 Derive insights from a git repository's history: per-commit snapshots, an indexed metrics catalog and material for visualizations.
 
@@ -9,7 +9,7 @@ Derive insights from a git repository's history: per-commit snapshots, an indexe
 Run one command against any git repository and get an explorable catalog of insights derived from its history:
 
 ```sh
-npx repo-insights scan
+npx repo-insighter scan
 ```
 
 - **Map**: walk the repo's commits (all or sampled) and let pluggable collectors capture raw snapshots per commit — language/LOC breakdowns, author stats, lint diagnostics and more.

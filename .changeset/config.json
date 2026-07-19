@@ -4,7 +4,7 @@
   "baseBranch": "main",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "kachkaev/repo-insights" }
+    { "repo": "kachkaev/repo-insighter" }
   ],
   "commit": false,
   "fixed": [],

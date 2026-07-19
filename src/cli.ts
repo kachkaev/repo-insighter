@@ -5,7 +5,7 @@ import { Command } from "effect/unstable/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { scanCommand } from "./commands/scan.ts";
 
-const cli = Command.make("repo-insights").pipe(
+const cli = Command.make("repo-insighter").pipe(
   Command.withDescription(
     "Derive insights from a git repository's history: per-commit snapshots, an indexed metrics catalog and material for visualizations",
   ),

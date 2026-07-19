@@ -18,7 +18,7 @@
 .env*.local
 *.log
 *.pem
-/repo-insights-*.tgz
+/repo-insighter-*.tgz
 
 ## Repo insights catalog (when running the tool against this repository)
-/.repo-insights/
+/.repo-insighter/
