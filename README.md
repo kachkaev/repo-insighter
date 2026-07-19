@@ -2,13 +2,14 @@
 
 Derive insights from a git repository's history: per-commit snapshots, an indexed metrics catalog and material for visualizations.
 
-> **Status: early development.** The project is at the specification and scaffolding stage. The architecture is being designed in [docs/specs](docs/specs/README.md) and the CLI currently exposes a single placeholder command. Nothing is published to npm yet.
+> **Status: early development.** The core pipeline works end to end — collect, index, explore — and the package is on npm, but interfaces, the catalog format and the collector roster are all still moving. The architecture is designed in [docs/specs](docs/specs/README.md); expect breaking changes while versions stay at 0.x.
 
 ## Vision
 
-Run one command against any git repository and get an explorable catalog of insights derived from its history:
+Point the tool at any git repository and get an explorable catalog of insights derived from its history:
 
 ```sh
+cd /path/to/your/repo
 npx repo-insighter scan
 ```
 
@@ -20,17 +21,18 @@ Everything is local-first, incremental and resumable: results live in a catalog 
 
 See [docs/specs](docs/specs/README.md) for the architecture being designed and [docs/research/prior-art.md](docs/research/prior-art.md) for a survey of existing tools and why none of them fills this niche.
 
-## Current CLI
+## Usage
+
+Run from inside the repository you want to analyze (or pass `--repo /path/to/repo`):
 
 ```sh
-pnpm install
-pnpm build
-node dist/cli.js scan --repo /path/to/repo      # collect snapshots into .repo-insighter/
-node dist/cli.js index --repo /path/to/repo     # roll up into the metrics cube + dashboard data
-node dist/cli.js dashboard --repo /path/to/repo # serve the interactive dashboard
-node dist/cli.js status --repo /path/to/repo    # show catalog coverage
-node dist/cli.js collectors                     # list available collectors
-node dist/cli.js gc --repo /path/to/repo        # clean up the catalog interactively
+cd /path/to/your/repo
+npx repo-insighter scan       # collect snapshots into .repo-insighter/
+npx repo-insighter index      # roll up into the metrics cube + dashboard data
+npx repo-insighter dashboard  # serve the interactive dashboard
+npx repo-insighter status     # show catalog coverage
+npx repo-insighter collectors # list available collectors
+npx repo-insighter gc         # clean up the catalog interactively
 ```
 
 `scan` walks the repository's history and runs collectors against every commit (or a sample, per collector), writing raw snapshots into a `.repo-insighter/` catalog inside the analyzed repo. It is resumable: re-running skips everything already collected, and bumping a collector's version invalidates only that collector's outputs. Checkout-based collectors use temporary detached worktrees — the analyzed repo's working tree is never touched. Collectors so far:
