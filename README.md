@@ -35,6 +35,7 @@ npx repo-insighter index      # roll up into the metrics cube + dashboard data
 npx repo-insighter dashboard  # serve the interactive dashboard
 npx repo-insighter status     # show catalog coverage
 npx repo-insighter collectors # list available collectors
+npx repo-insighter report     # export one shareable self-contained HTML file
 npx repo-insighter gc         # clean up the catalog interactively
 ```
 

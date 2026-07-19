@@ -25,7 +25,7 @@ const mimeTypes: Record<string, string> = {
 };
 
 /** Bundled build: dist/cli.js + dist/dashboard/. Dev: src/lib/… + dist/dashboard/. */
-const resolveAssetsDir = (): string | undefined => {
+export const resolveAssetsDir = (): string | undefined => {
   const candidates = [
     fileURLToPath(new URL("dashboard", import.meta.url)),
     fileURLToPath(new URL("../../dist/dashboard", import.meta.url)),
@@ -35,7 +35,7 @@ const resolveAssetsDir = (): string | undefined => {
   );
 };
 
-const openInBrowser = (url: string): Effect.Effect<void, Error> =>
+export const openInBrowser = (url: string): Effect.Effect<void, Error> =>
   Effect.scoped(
     Effect.gen(function* () {
       const command =

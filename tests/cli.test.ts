@@ -250,3 +250,33 @@ void test("bare invocation runs the whole pipeline and serves the dashboard", as
     rmSync(repoPath, { force: true, recursive: true });
   }
 });
+
+void test("report exports a self-contained HTML file", (testContext) => {
+  if (
+    !existsSync(path.join(rootDirectory, "dist", "dashboard", "index.html"))
+  ) {
+    testContext.skip("dist/dashboard not built");
+    return;
+  }
+
+  const repoPath = createFixtureRepo();
+
+  try {
+    runCli("scan", "--repo", repoPath, "--collectors", "commit-meta,churn");
+    runCli("index", "--repo", repoPath);
+    const result = runCli("report", "--repo", repoPath);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /self-contained/);
+
+    const reportHtml = readFileSync(
+      path.join(repoPath, ".repo-insighter", "index", "report.html"),
+      "utf8",
+    );
+    assert.match(reportHtml, /window\.__REPO_INSIGHTER_DATA__ = \{/);
+    assert.match(reportHtml, /"commitCount":2/);
+    assert.doesNotMatch(reportHtml, /src="\/assets/);
+    assert.doesNotMatch(reportHtml, /<link rel="stylesheet"/);
+  } finally {
+    rmSync(repoPath, { force: true, recursive: true });
+  }
+});

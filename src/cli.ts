@@ -7,6 +7,7 @@ import { collectorsCommand } from "./commands/collectors.ts";
 import { dashboardCommand } from "./commands/dashboard.ts";
 import { gcCommand } from "./commands/gc.ts";
 import { indexCommand } from "./commands/index-command.ts";
+import { reportCommand } from "./commands/report.ts";
 import { scanCommand } from "./commands/scan.ts";
 import { statusCommand } from "./commands/status.ts";
 import { runDashboard } from "./lib/dashboard-server.ts";
@@ -50,6 +51,7 @@ const cli = Command.make("repo-insighter", {
     scanCommand,
     indexCommand,
     dashboardCommand,
+    reportCommand,
     statusCommand,
     collectorsCommand,
     gcCommand,

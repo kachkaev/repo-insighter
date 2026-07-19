@@ -1,6 +1,6 @@
 # CLI surface
 
-_Draft. `scan`, `index`, `dashboard`, `status`, `collectors` and `gc` are implemented; `report`/`query` remain design._
+_Draft. `scan`, `index`, `dashboard`, `report`, `status`, `collectors` and `gc` are implemented (plus the bare-invocation pipeline); `query` remains design._
 
 ## Commands
 
@@ -12,14 +12,14 @@ npx repo-insighter dashboard  [--repo PATH] [--port N] [--open]
 npx repo-insighter status     [--repo PATH]
 npx repo-insighter collectors
 npx repo-insighter gc         [--repo PATH] [--unreachable] [--stale] [--collectors a,b] [--dry-run] [--yes]
-npx repo-insighter report     [--repo PATH] [--open]         # future
+npx repo-insighter report     [--repo PATH] [--out PATH] [--open]
 npx repo-insighter query      [--repo PATH] "<sql or dsl>"   # future
 ```
 
 - **`scan`** — the map phase. Enumerates commits, decides which (commit, collector) pairs still need work, runs collectors and fills the catalog with raw snapshots. Safe to interrupt and re-run; shows progress and an ETA. Flags to scope work: `--collectors`, `--sample` (see [collectors](04-collectors.md)), `--since`, `--max-commits`.
 - **`index`** — the reduce phase. Normalizes raw snapshots into the SQLite cube. Fast, idempotent, re-runnable from scratch (`--rebuild`) since raw data is the source of truth.
 - **`status`** — inspects the catalog: which collectors have run over which commit ranges, catalog size, index freshness. The "where am I?" command for the multi-step workflow.
-- **`report`** — generates human-facing output from the cube (initial idea: a self-contained HTML file with charts, à la git-truck/gitstats; format TBD, see open questions).
+- **`report`** — exports the dashboard as one self-contained HTML file (bundle + data inlined) for sharing and presentations.
 - **`query`** — escape hatch: run a query against the cube and print rows (also the likely seam for AI/MCP integration later).
 
 Bare `repo-insighter` with no subcommand runs `scan` + `index` + `dashboard` in sequence — the zero-config happy path.
