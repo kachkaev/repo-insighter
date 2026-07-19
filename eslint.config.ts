@@ -9,6 +9,18 @@ export default defineConfig([
   },
 
   {
+    files: ["dashboard/**/*.ts", "dashboard/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": "off", // The fetched dashboard.json crosses a trusted local boundary; a single cast beats hand-validating every series.
+      "@typescript-eslint/explicit-module-boundary-types": "off", // React components and hooks are fine with inferred return types.
+      "func-style": "off", // Small local helpers read naturally as const arrows next to component bodies.
+      "import/no-default-export": "off", // Vite config files must default-export.
+      "import/no-extraneous-dependencies": "off", // The dashboard is bundled by Vite, so its packages live in devDependencies by design.
+      "unicorn/no-array-callback-reference": "off", // Passing named pure helpers to map/filter is idiomatic in the chart-shaping code.
+    },
+  },
+
+  {
     files: ["src/**/*.ts"],
     rules: {
       "@typescript-eslint/explicit-module-boundary-types": "off", // Effect-heavy APIs infer large Effect<Success, Error, Requirements> signatures; repeating them adds noise.
