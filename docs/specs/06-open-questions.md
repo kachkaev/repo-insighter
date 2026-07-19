@@ -27,7 +27,7 @@ Decisions still to make, roughly ordered by how soon they bite.
 ## Exploration layer
 
 - `report` output: self-contained HTML file (gitstats/git-truck lineage) vs local web app vs static image/markdown export for presentations. Presentations are a stated goal, so an export path matters early.
-- AI integration: MCP server over the cube? A `query --json` contract that agents can already use?
+- ~~AI integration~~ — answered: `repo-insighter mcp` serves the cube over MCP (stdio), and `query --json` gives agents a scriptable contract.
 - Chart library and theming for whatever HTML output exists.
 
 ## Scope

@@ -280,3 +280,82 @@ void test("report exports a self-contained HTML file", (testContext) => {
     rmSync(repoPath, { force: true, recursive: true });
   }
 });
+
+void test("query runs read-only SQL against the cube", () => {
+  const repoPath = createFixtureRepo();
+
+  try {
+    runCli("scan", "--repo", repoPath, "--collectors", "commit-meta,churn");
+    runCli("index", "--repo", repoPath);
+
+    const result = runCli(
+      "query",
+      "--repo",
+      repoPath,
+      "--json",
+      "SELECT count(*) AS n FROM commits",
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /"n": 2/);
+
+    const rejected = runCli("query", "--repo", repoPath, "DELETE FROM facts");
+    assert.equal(rejected.status, 1);
+    assert.match(rejected.stderr, /Only read-only queries/);
+  } finally {
+    rmSync(repoPath, { force: true, recursive: true });
+  }
+});
+
+void test("mcp serves the cube over stdio", async () => {
+  const repoPath = createFixtureRepo();
+  const { spawn } = await import("node:child_process");
+
+  try {
+    runCli("scan", "--repo", repoPath, "--collectors", "commit-meta");
+    runCli("index", "--repo", repoPath);
+
+    const server = spawn(
+      process.execPath,
+      ["src/cli.ts", "mcp", "--repo", repoPath],
+      { cwd: rootDirectory, stdio: ["pipe", "pipe", "ignore"] },
+    );
+
+    try {
+      let output = "";
+      const done = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error(`Timed out. Output so far:\n${output}`));
+        }, 20_000);
+        server.stdout.on("data", (chunk: Buffer) => {
+          output += chunk.toString();
+          if (output.includes('"structuredContent"')) {
+            clearTimeout(timer);
+            resolve();
+          }
+        });
+        server.on("exit", () => {
+          clearTimeout(timer);
+          reject(new Error(`Server exited early. Output:\n${output}`));
+        });
+      });
+
+      server.stdin.write(
+        `${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "0" } } })}\n`,
+      );
+      server.stdin.write(
+        `${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`,
+      );
+      server.stdin.write(
+        `${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "query", arguments: { sql: "SELECT count(*) AS n FROM commits" } } })}\n`,
+      );
+      await done;
+
+      assert.match(output, /"serverInfo":\{"name":"repo-insighter"/);
+      assert.match(output, /"rows":\[\{"n":2\}\]/);
+    } finally {
+      server.kill();
+    }
+  } finally {
+    rmSync(repoPath, { force: true, recursive: true });
+  }
+});

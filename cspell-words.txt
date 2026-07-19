@@ -47,6 +47,7 @@ rebuildable
 repoinsights
 rollups
 scc
+scriptable
 Sigstore
 simonw
 smol

@@ -36,7 +36,9 @@ npx repo-insighter dashboard  # serve the interactive dashboard
 npx repo-insighter status     # show catalog coverage
 npx repo-insighter collectors # list available collectors
 npx repo-insighter report     # export one shareable self-contained HTML file
-npx repo-insighter gc         # clean up the catalog interactively
+npx repo-insighter query "SELECT metric, sum(value) FROM facts GROUP BY metric"
+npx repo-insighter mcp # serve the cube to AI agents (Model Context Protocol)
+npx repo-insighter gc  # clean up the catalog interactively
 ```
 
 `scan` walks the repository's history and runs collectors against every commit (or a sample, per collector), writing raw snapshots into a `.repo-insighter/` catalog inside the analyzed repo. It is resumable: re-running skips everything already collected, and bumping a collector's version invalidates only that collector's outputs. Checkout-based collectors use temporary detached worktrees — the analyzed repo's working tree is never touched. Collectors so far:

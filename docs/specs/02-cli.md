@@ -1,6 +1,6 @@
 # CLI surface
 
-_Draft. `scan`, `index`, `dashboard`, `report`, `status`, `collectors` and `gc` are implemented (plus the bare-invocation pipeline); `query` remains design._
+_All commands below are implemented._
 
 ## Commands
 
@@ -13,14 +13,16 @@ npx repo-insighter status     [--repo PATH]
 npx repo-insighter collectors
 npx repo-insighter gc         [--repo PATH] [--unreachable] [--stale] [--collectors a,b] [--dry-run] [--yes]
 npx repo-insighter report     [--repo PATH] [--out PATH] [--open]
-npx repo-insighter query      [--repo PATH] "<sql or dsl>"   # future
+npx repo-insighter query      [--repo PATH] [--json] "<sql>"
+npx repo-insighter mcp        [--repo PATH]
 ```
 
 - **`scan`** — the map phase. Enumerates commits, decides which (commit, collector) pairs still need work, runs collectors and fills the catalog with raw snapshots. Safe to interrupt and re-run; shows progress and an ETA. Flags to scope work: `--collectors`, `--sample` (see [collectors](04-collectors.md)), `--since`, `--max-commits`.
 - **`index`** — the reduce phase. Normalizes raw snapshots into the SQLite cube. Fast, idempotent, re-runnable from scratch (`--rebuild`) since raw data is the source of truth.
 - **`status`** — inspects the catalog: which collectors have run over which commit ranges, catalog size, index freshness. The "where am I?" command for the multi-step workflow.
 - **`report`** — exports the dashboard as one self-contained HTML file (bundle + data inlined) for sharing and presentations.
-- **`query`** — escape hatch: run a query against the cube and print rows (also the likely seam for AI/MCP integration later).
+- **`query`** — escape hatch: run a read-only SQL query against the cube and print rows (table or `--json`).
+- **`mcp`** — serve the cube over the Model Context Protocol (stdio) with `schema` and `query` tools, so AI agents can explore a scanned repository.
 
 Bare `repo-insighter` with no subcommand runs `scan` + `index` + `dashboard` in sequence — the zero-config happy path.
 
