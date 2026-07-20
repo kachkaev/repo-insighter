@@ -199,6 +199,25 @@ const buildDashboardData = (
       };
     });
 
+  const dependencies = commits
+    .filter((commit) => hasMetric(commit, "dependencies.resolved"))
+    .map((commit) => {
+      const byKind = groupMetric(commit, "dependencies.direct", "kind");
+      return {
+        sha: commit.sha.slice(0, 10),
+        date: commit.date,
+        resolved: sumMetric(commit, "dependencies.resolved"),
+        directProd: byKind["prod"] ?? 0,
+        directDev: byKind["dev"] ?? 0,
+        directOptional: byKind["optional"] ?? 0,
+        byPackageManager: groupMetric(
+          commit,
+          "dependencies.resolved",
+          "packageManager",
+        ),
+      };
+    });
+
   const latestWithDirectives = commits.findLast((commit) =>
     hasMetric(commit, "directives.eslint"),
   );
@@ -294,6 +313,7 @@ const buildDashboardData = (
     languages,
     fileTypes,
     directives,
+    dependencies,
     topRules,
     survival,
     contributors,

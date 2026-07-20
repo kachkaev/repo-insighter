@@ -111,6 +111,8 @@ export function App({ data }: { data: DashboardData }) {
   const latestLanguages = data.languages.at(-1);
   const latestDirectives = data.directives.at(-1);
   const latestFileTypes = data.fileTypes.at(-1);
+  const dependencies = data.dependencies;
+  const latestDependencies = dependencies.at(-1);
 
   const aiShareRecent = useMemo(() => {
     const cutoff = Date.now() - 90 * 86_400_000;
@@ -168,6 +170,24 @@ export function App({ data }: { data: DashboardData }) {
       colors: ["var(--series-6)", "var(--series-3)", "var(--series-1)"],
     };
   }, [data.directives]);
+
+  const dependenciesChart = useMemo(
+    () =>
+      shapeStacked(
+        decimate(dependencies, 400).map((row) => ({
+          date: row.date,
+          values: row.byPackageManager,
+        })),
+        5,
+      ),
+    [dependencies],
+  );
+
+  const directDependenciesTotal = latestDependencies
+    ? latestDependencies.directProd +
+      latestDependencies.directDev +
+      latestDependencies.directOptional
+    : 0;
 
   const survivalCohortChart = useMemo(() => {
     if (data.survival.length === 0) {
@@ -261,6 +281,17 @@ export function App({ data }: { data: DashboardData }) {
           }
         />
         <StatTile
+          label="Dependencies"
+          value={
+            latestDependencies ? formatCount(latestDependencies.resolved) : "—"
+          }
+          hint={
+            latestDependencies
+              ? `${formatCount(directDependenciesTotal)} direct`
+              : undefined
+          }
+        />
+        <StatTile
           label="AI commits"
           value={
             aiShareRecent === undefined ? "—" : formatPercent(aiShareRecent)
@@ -297,6 +328,26 @@ export function App({ data }: { data: DashboardData }) {
             rows={languagesChart.points.map((point) => [
               formatDate(new Date(point.dateMs).toISOString()),
               ...languagesChart.seriesKeys.map((key) => point.values[key] ?? 0),
+            ])}
+          />
+        </Section>
+      )}
+
+      {dependenciesChart.points.length > 0 && (
+        <Section
+          title="Dependencies over time"
+          subtitle="resolved packages in the lockfile at each commit, split by package manager"
+        >
+          <TimeSeriesChart mode="area" {...dependenciesChart} />
+          <DataTable
+            caption="View data"
+            header={["date", "resolved", "direct", "dev", "optional"]}
+            rows={dependencies.map((row) => [
+              formatDate(row.date),
+              row.resolved,
+              row.directProd,
+              row.directDev,
+              row.directOptional,
             ])}
           />
         </Section>

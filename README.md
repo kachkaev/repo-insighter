@@ -47,11 +47,12 @@ npx repo-insighter gc  # clean up the catalog interactively
 - **churn** — lines added/deleted per commit, by file extension
 - **file-types** — file count and bytes per extension at each commit's tree
 - **directives** — eslint-disable comments by rule (block disables tracked as gray areas) and `@ts-ignore`/`@ts-expect-error`/`@ts-nocheck`
+- **dependencies** — total resolved packages and direct/dev dependencies from package-manager lockfiles, per package manager (pnpm so far; version-aware and monorepo-aware)
 - **todo-comments** — TODO/FIXME/HACK/XXX counts
 - **languages** — tokei language/LOC breakdown (sampled monthly; markdown counted whole)
 - **survival** — `git blame` line survival by extension, author and age cohort (sampled monthly)
 
-`index` normalizes raw snapshots into `.repo-insighter/index/metrics.sqlite` (a facts-by-categories cube, rebuildable at any time) plus `dashboard.json`, and `dashboard` serves a local React app with interactive charts: languages over time, monthly commits with AI-assisted share, churn, lint-suppression trends, code survival by cohort and author, and more.
+`index` normalizes raw snapshots into `.repo-insighter/index/metrics.sqlite` (a facts-by-categories cube, rebuildable at any time) plus `dashboard.json`, and `dashboard` serves a local React app with interactive charts: languages over time, monthly commits with AI-assisted share, churn, lint-suppression trends, dependency counts over time, code survival by cohort and author, and more.
 
 ## Configuration
 

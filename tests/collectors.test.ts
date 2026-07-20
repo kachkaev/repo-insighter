@@ -247,6 +247,161 @@ void test("parseBlamePorcelain attributes lines to authors and cohorts", async (
   });
 });
 
+void test("parsePnpmLockfile counts resolved and direct deps, version-aware", async () => {
+  const { parsePnpmLockfile } =
+    await import("../src/lib/collectors/dependencies.ts");
+
+  // A monorepo: React 19 in one package, React 18 in another → two prod deps.
+  const summary = parsePnpmLockfile(
+    [
+      "lockfileVersion: '9.0'",
+      "",
+      "importers:",
+      "",
+      "  .:",
+      "    dependencies:",
+      "      react:",
+      "        specifier: ^19",
+      "        version: 19.2.0",
+      "    devDependencies:",
+      "      typescript:",
+      "        specifier: '5'",
+      "        version: 5.9.0",
+      "",
+      "  packages/legacy:",
+      "    dependencies:",
+      "      react:",
+      "        specifier: ^18",
+      "        version: 18.3.1",
+      "    optionalDependencies:",
+      "      fsevents:",
+      "        specifier: ^2",
+      "        version: 2.3.3",
+      "",
+      "packages:",
+      "",
+      "  react@19.2.0: {}",
+      "  react@18.3.1: {}",
+      "  typescript@5.9.0: {}",
+      "  fsevents@2.3.3: {}",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(summary, {
+    packageManager: "pnpm",
+    lockfileVersion: "9.0",
+    resolvedCount: 4,
+    importerCount: 2,
+    direct: { prod: 2, dev: 1, optional: 1 },
+  });
+});
+
+void test("parsePnpmLockfile skips pnpm's package-manager document", async () => {
+  const { parsePnpmLockfile } =
+    await import("../src/lib/collectors/dependencies.ts");
+
+  // First document manages pnpm itself; only the second is a real lockfile.
+  const summary = parsePnpmLockfile(
+    [
+      "lockfileVersion: '9.0'",
+      "",
+      "importers:",
+      "",
+      "  .:",
+      "    configDependencies: {}",
+      "    packageManagerDependencies:",
+      "      pnpm:",
+      "        specifier: 11.15.0",
+      "        version: 11.15.0",
+      "",
+      "packages:",
+      "",
+      "  pnpm@11.15.0: {}",
+      "",
+      "---",
+      "lockfileVersion: '9.0'",
+      "",
+      "importers:",
+      "",
+      "  .:",
+      "    dependencies:",
+      "      lodash:",
+      "        specifier: ^4",
+      "        version: 4.17.21",
+      "",
+      "packages:",
+      "",
+      "  lodash@4.17.21: {}",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(summary, {
+    packageManager: "pnpm",
+    lockfileVersion: "9.0",
+    resolvedCount: 1,
+    importerCount: 1,
+    direct: { prod: 1, dev: 0, optional: 0 },
+  });
+});
+
+void test("parsePnpmLockfile returns undefined for non-lockfile content", async () => {
+  const { parsePnpmLockfile } =
+    await import("../src/lib/collectors/dependencies.ts");
+  assert.equal(parsePnpmLockfile("just a string"), undefined);
+});
+
+void test("dependencies collector normalizes lockfiles into facts", async () => {
+  const { dependenciesCollector } =
+    await import("../src/lib/collectors/dependencies.ts");
+  const facts = dependenciesCollector.normalize({
+    lockfiles: [
+      {
+        path: "pnpm-lock.yaml",
+        packageManager: "pnpm",
+        lockfileVersion: "9.0",
+        resolvedCount: 741,
+        importerCount: 1,
+        direct: { prod: 0, dev: 36, optional: 0 },
+      },
+    ],
+  });
+
+  assert.deepEqual(facts, [
+    {
+      metric: "dependencies.resolved",
+      value: 741,
+      categories: { packageManager: "pnpm", lockfile: "pnpm-lock.yaml" },
+    },
+    {
+      metric: "dependencies.direct",
+      value: 0,
+      categories: {
+        packageManager: "pnpm",
+        lockfile: "pnpm-lock.yaml",
+        kind: "prod",
+      },
+    },
+    {
+      metric: "dependencies.direct",
+      value: 36,
+      categories: {
+        packageManager: "pnpm",
+        lockfile: "pnpm-lock.yaml",
+        kind: "dev",
+      },
+    },
+    {
+      metric: "dependencies.direct",
+      value: 0,
+      categories: {
+        packageManager: "pnpm",
+        lockfile: "pnpm-lock.yaml",
+        kind: "optional",
+      },
+    },
+  ]);
+});
+
 void test("scanFileForTodos counts markers per line", async () => {
   const { scanFileForTodos } =
     await import("../src/lib/collectors/todo-comments.ts");

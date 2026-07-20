@@ -1,5 +1,6 @@
 import { churnCollector } from "./churn.ts";
 import { commitMetaCollector } from "./commit-meta.ts";
+import { dependenciesCollector } from "./dependencies.ts";
 import { directivesCollector } from "./directives.ts";
 import { fileTypesCollector } from "./file-types.ts";
 import { languagesCollector } from "./languages.ts";
@@ -12,6 +13,7 @@ export const builtInCollectors: readonly Collector[] = [
   churnCollector,
   fileTypesCollector,
   directivesCollector,
+  dependenciesCollector,
   todoCommentsCollector,
   languagesCollector,
   survivalCollector,

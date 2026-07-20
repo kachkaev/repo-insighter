@@ -57,6 +57,7 @@ Implemented (v0, in `src/lib/collectors/`):
 1.  **commit-meta** (`log`) — author/committer identities, dates, parents, subject; the base everything else joins against
 1.  **churn** (`log`) — lines added/deleted per commit vs first parent, by file extension
 1.  **file-types** (`tree`) — file count and bytes per extension at the commit's tree (cheap stand-in for a real language breakdown)
+1.  **dependencies** (`tree`) — total resolved packages and direct/dev dependencies from package-manager lockfiles, per package manager (pnpm so far; parser registry keyed by lockfile name generalizes to npm/yarn/bun)
 
 Planned next:
 
