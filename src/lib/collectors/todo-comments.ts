@@ -50,7 +50,11 @@ const mergeTodos = (fileResults: readonly unknown[]): TodoCommentsOutput => {
 export const todoCommentsCollector: Collector = {
   name: "todo-comments",
   description: "TODO/FIXME/HACK/XXX comment counts in source files",
-  version: "1",
+  // Bumped 1 → 2 to invalidate outputs written by an early build of this
+  // collector that recorded 0 for every commit. The scan is resumable and the
+  // per-blob cache is version-keyed, so without this bump those stale zeros
+  // (and their poisoned cache entries) would survive every re-scan.
+  version: "2",
   strategy: "tree",
   defaultSampling: "all",
   collect: ({ repoRoot, sha }) =>
