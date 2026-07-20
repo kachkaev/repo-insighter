@@ -261,3 +261,23 @@ void test("scanFileForTodos counts markers per line", async () => {
   assert.equal(output.total, 4);
   assert.deepEqual(output.byMarker, { TODO: 2, FIXME: 1, HACK: 1 });
 });
+
+// A marker is counted anywhere on a line, so it need not open the comment.
+// These are the shapes seen in real codebases (labelled TODOs, markers tucked
+// after a `--` suppression rationale, JSX and block comments) — all must count.
+void test("scanFileForTodos matches markers embedded mid-line", async () => {
+  const { scanFileForTodos } =
+    await import("../src/lib/collectors/todo-comments.ts");
+  const output = scanFileForTodos(
+    [
+      "// TODO (Ada Lovelace) [2024-01-01]: extract a helper",
+      "const x = 1; // @ts-expect-error -- TODO (Bob) [2024-02-02]: fix types",
+      "// eslint-disable-next-line no-console -- FIXME (Cleo): remove logging",
+      "/* HACK (Dan): workaround until upstream ships the patch */",
+      "{/* TODO (Eve) [2024-03-03]: replace with real component */}",
+      "const label = 'a todo written in prose stays uncounted';",
+    ].join("\n"),
+  );
+  assert.equal(output.total, 5);
+  assert.deepEqual(output.byMarker, { TODO: 3, FIXME: 1, HACK: 1 });
+});
