@@ -31,7 +31,7 @@ Merging applies to: `commits.count`/churn attribution, the authors table, surviv
 
 ## Feature 2: author cap in charts
 
-The dashboard currently folds authors into "Other" beyond hard-coded caps (6 in the survival-by-author stacked area, 10 in the authors bar list). Raise the default to **10** for stacked areas (20 for bar lists) and make it configurable via `authors.maxInCharts`. Note the categorical palette has 8 slots — beyond 8, series need the sequential-ramp fallback or "Other" folding; check the dataviz guidance before exceeding 8 in one stack.
+The dashboard currently folds authors into "Other" beyond hard-coded caps (6 in the survival-by-author stacked area, 10 in the authors bar list). Raise the default to **10** for stacked areas (20 for bar lists) and make it configurable via `authors.maxInCharts`. Note the categorical palette has 8 slots — beyond 8, series need the sequential-ramp fallback or "Other" folding; check the data-viz guidance before exceeding 8 in one stack.
 
 ## Implementation notes
 
