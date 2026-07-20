@@ -42,6 +42,18 @@ type DirectivesRow = {
   todos: number;
 };
 
+type DependenciesRow = {
+  sha: string;
+  date: string;
+  /** Total resolved packages across all lockfiles in the tree. */
+  resolved: number;
+  directProd: number;
+  directDev: number;
+  directOptional: number;
+  /** Resolved packages split by package manager (pnpm, …). */
+  byPackageManager: Record<string, number>;
+};
+
 type SurvivalRow = {
   sha: string;
   date: string;
@@ -81,6 +93,7 @@ export type DashboardData = {
   languages: LanguagesRow[];
   fileTypes: FileTypesRow[];
   directives: DirectivesRow[];
+  dependencies: DependenciesRow[];
   topRules: Array<{ rule: string; count: number }>;
   survival: SurvivalRow[];
   authors: AuthorRow[];
