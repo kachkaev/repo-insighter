@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 
 import { parseSamplingPolicy, sampleCommits } from "../src/lib/sampling.ts";
 
@@ -21,34 +20,31 @@ const commits = [
   commit("a", "2025-12-01T10:00:00Z"),
 ];
 
-void test("sampleCommits keeps everything for all", () => {
-  assert.equal(sampleCommits(commits, "all").length, 5);
+test("sampleCommits keeps everything for all", () => {
+  expect(sampleCommits(commits, "all").length).toBe(5);
 });
 
-void test("sampleCommits keeps the newest commit per month", () => {
-  assert.deepEqual(
+test("sampleCommits keeps the newest commit per month", () => {
+  expect(
     sampleCommits(commits, "monthly").map((entry) => entry.hash),
-    ["e", "c", "b"],
-  );
+  ).toStrictEqual(["e", "c", "b"]);
 });
 
-void test("sampleCommits keeps the newest commit per quarter", () => {
-  assert.deepEqual(
+test("sampleCommits keeps the newest commit per quarter", () => {
+  expect(
     sampleCommits(commits, "quarterly").map((entry) => entry.hash),
-    ["e", "b"],
-  );
+  ).toStrictEqual(["e", "b"]);
 });
 
-void test("sampleCommits supports every-nth", () => {
-  assert.deepEqual(
+test("sampleCommits supports every-nth", () => {
+  expect(
     sampleCommits(commits, { everyNth: 2 }).map((entry) => entry.hash),
-    ["e", "c", "a"],
-  );
+  ).toStrictEqual(["e", "c", "a"]);
 });
 
-void test("parseSamplingPolicy accepts known policies and rejects others", () => {
-  assert.equal(parseSamplingPolicy("monthly"), "monthly");
-  assert.deepEqual(parseSamplingPolicy("every-nth:5"), { everyNth: 5 });
-  assert.ok(parseSamplingPolicy("fortnightly") instanceof Error);
-  assert.ok(parseSamplingPolicy("every-nth:0") instanceof Error);
+test("parseSamplingPolicy accepts known policies and rejects others", () => {
+  expect(parseSamplingPolicy("monthly")).toBe("monthly");
+  expect(parseSamplingPolicy("every-nth:5")).toStrictEqual({ everyNth: 5 });
+  expect(parseSamplingPolicy("fortnightly")).toBeInstanceOf(Error);
+  expect(parseSamplingPolicy("every-nth:0")).toBeInstanceOf(Error);
 });

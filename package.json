@@ -69,7 +69,7 @@
     "lint:tsc": "tsc --noEmit && tsc -p dashboard --noEmit",
     "prepack": "pnpm build",
     "prepare": "node .husky/install.mjs",
-    "test": "node --test tests/*.test.ts"
+    "test": "vitest run"
   },
   "lint-staged": {
     "**": [
@@ -113,6 +113,7 @@
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "vite": "8.1.5",
+    "vitest": "4.1.10",
     "yaml": "2.9.0"
   },
   "packageManager": "pnpm@11.15.0",
