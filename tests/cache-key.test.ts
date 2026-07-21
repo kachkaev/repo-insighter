@@ -1,7 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import { Effect } from "effect";
+import { expect, test } from "vitest";
 
 import { collectorCacheKey } from "../src/lib/collectors/cache-key.ts";
 import type { Collector } from "../src/lib/collectors/types.ts";
@@ -33,46 +31,41 @@ function collector(overrides: Partial<Collector>): Collector {
   };
 }
 
-void test("cache key is a 12-char hex fingerprint", () => {
+test("cache key is a 12-char hex fingerprint", () => {
   const key = collectorCacheKey(collector({}), config(10));
-  assert.match(key, /^[0-9a-f]{12}$/);
+  expect(key).toMatch(/^[0-9a-f]{12}$/);
 });
 
-void test("a config-free collector's key ignores config, tracks version", () => {
+test("a config-free collector's key ignores config, tracks version", () => {
   const free = collector({});
   // Same version, different config → identical key (no config dependency).
-  assert.equal(
-    collectorCacheKey(free, config(10)),
+  expect(collectorCacheKey(free, config(10))).toBe(
     collectorCacheKey(free, config(99)),
   );
   // Bumping the version changes the key.
-  assert.notEqual(
-    collectorCacheKey(free, config(10)),
+  expect(collectorCacheKey(free, config(10))).not.toBe(
     collectorCacheKey(collector({ version: "2" }), config(10)),
   );
 });
 
-void test("a config-dependent collector's key tracks its config slice", () => {
+test("a config-dependent collector's key tracks its config slice", () => {
   const dependent = collector({
     cacheConfig: (resolved) => ({ cap: resolved.maxInCharts }),
   });
   // The depended-on value changes → key changes.
-  assert.notEqual(
-    collectorCacheKey(dependent, config(10)),
+  expect(collectorCacheKey(dependent, config(10))).not.toBe(
     collectorCacheKey(dependent, config(20)),
   );
   // Same value → stable key.
-  assert.equal(
-    collectorCacheKey(dependent, config(10)),
+  expect(collectorCacheKey(dependent, config(10))).toBe(
     collectorCacheKey(dependent, config(10)),
   );
 });
 
-void test("the config slice is canonicalized, so key order does not matter", () => {
+test("the config slice is canonicalized, so key order does not matter", () => {
   const a = collector({ cacheConfig: () => ({ x: 1, y: 2 }) });
   const b = collector({ cacheConfig: () => ({ y: 2, x: 1 }) });
-  assert.equal(
-    collectorCacheKey(a, config(10)),
+  expect(collectorCacheKey(a, config(10))).toBe(
     collectorCacheKey(b, config(10)),
   );
 });
