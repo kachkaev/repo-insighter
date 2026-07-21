@@ -1,22 +1,35 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 
 import { parseNumstat } from "../src/lib/collectors/churn.ts";
-import { parseCommitMeta } from "../src/lib/collectors/commit-meta.ts";
+import {
+  parseCommitMeta,
+  parseTrailers,
+} from "../src/lib/collectors/commit-meta.ts";
+import {
+  dependenciesCollector,
+  parsePnpmLockfile,
+} from "../src/lib/collectors/dependencies.ts";
+import {
+  mergeDirectives,
+  scanFileForDirectives,
+} from "../src/lib/collectors/directives.ts";
 import { parseLsTree } from "../src/lib/collectors/file-types.ts";
+import { parseTokeiJson } from "../src/lib/collectors/languages.ts";
+import { parseBlamePorcelain } from "../src/lib/collectors/survival.ts";
+import { scanFileForTodos } from "../src/lib/collectors/todo-comments.ts";
 import { extensionOf } from "../src/lib/collectors/types.ts";
 
 const separator = "\u001F";
 
-void test("extensionOf maps paths to extension categories", () => {
-  assert.equal(extensionOf("src/lib/scan.ts"), ".ts");
-  assert.equal(extensionOf("README.MD"), ".md");
-  assert.equal(extensionOf("Makefile"), "(none)");
-  assert.equal(extensionOf(".gitignore"), "(none)");
-  assert.equal(extensionOf("a/b.c/d"), "(none)");
+test("extensionOf maps paths to extension categories", () => {
+  expect(extensionOf("src/lib/scan.ts")).toBe(".ts");
+  expect(extensionOf("README.MD")).toBe(".md");
+  expect(extensionOf("Makefile")).toBe("(none)");
+  expect(extensionOf(".gitignore")).toBe("(none)");
+  expect(extensionOf("a/b.c/d")).toBe("(none)");
 });
 
-void test("parseCommitMeta extracts full commit metadata", () => {
+test("parseCommitMeta extracts full commit metadata", () => {
   const meta = parseCommitMeta(
     [
       "aaa111",
@@ -32,7 +45,7 @@ void test("parseCommitMeta extracts full commit metadata", () => {
     ].join(separator),
   );
 
-  assert.deepEqual(meta, {
+  expect(meta).toStrictEqual({
     sha: "aaa111",
     authorName: "Alice",
     authorEmail: "alice@example.com",
@@ -49,7 +62,7 @@ void test("parseCommitMeta extracts full commit metadata", () => {
   });
 });
 
-void test("parseNumstat aggregates churn by extension", () => {
+test("parseNumstat aggregates churn by extension", () => {
   const churn = parseNumstat(
     [
       "10\t2\tsrc/a.ts",
@@ -60,23 +73,23 @@ void test("parseNumstat aggregates churn by extension", () => {
     ].join("\n"),
   );
 
-  assert.equal(churn.filesChanged, 4);
-  assert.equal(churn.added, 16);
-  assert.equal(churn.deleted, 3);
-  assert.equal(churn.binaryFiles, 1);
-  assert.deepEqual(churn.byExtension[".ts"], {
+  expect(churn.filesChanged).toBe(4);
+  expect(churn.added).toBe(16);
+  expect(churn.deleted).toBe(3);
+  expect(churn.binaryFiles).toBe(1);
+  expect(churn.byExtension[".ts"]).toStrictEqual({
     files: 2,
     added: 15,
     deleted: 2,
   });
-  assert.deepEqual(churn.byExtension[".png"], {
+  expect(churn.byExtension[".png"]).toStrictEqual({
     files: 1,
     added: 0,
     deleted: 0,
   });
 });
 
-void test("parseLsTree aggregates blob sizes by extension", () => {
+test("parseLsTree aggregates blob sizes by extension", () => {
   const fileTypes = parseLsTree(
     [
       "100644 blob 1111111111111111111111111111111111111111     120\tsrc/a.ts",
@@ -87,31 +100,25 @@ void test("parseLsTree aggregates blob sizes by extension", () => {
     ].join("\n"),
   );
 
-  assert.equal(fileTypes.totalFiles, 3);
-  assert.equal(fileTypes.totalBytes, 150);
-  assert.deepEqual(fileTypes.byExtension[".ts"], { files: 1, bytes: 120 });
-  assert.deepEqual(fileTypes.byExtension["(none)"], { files: 1, bytes: 0 });
+  expect(fileTypes.totalFiles).toBe(3);
+  expect(fileTypes.totalBytes).toBe(150);
+  expect(fileTypes.byExtension[".ts"]).toStrictEqual({ files: 1, bytes: 120 });
+  expect(fileTypes.byExtension["(none)"]).toStrictEqual({ files: 1, bytes: 0 });
 });
 
-void test("parseTrailers extracts key-value trailers", async () => {
-  const { parseTrailers } =
-    await import("../src/lib/collectors/commit-meta.ts");
-  assert.deepEqual(
+test("parseTrailers extracts key-value trailers", () => {
+  expect(
     parseTrailers(
       "Co-Authored-By: Claude <noreply@anthropic.com>\nReviewed-by: Alice\n",
     ),
-    [
-      { key: "Co-Authored-By", value: "Claude <noreply@anthropic.com>" },
-      { key: "Reviewed-by", value: "Alice" },
-    ],
-  );
-  assert.deepEqual(parseTrailers(""), []);
+  ).toStrictEqual([
+    { key: "Co-Authored-By", value: "Claude <noreply@anthropic.com>" },
+    { key: "Reviewed-by", value: "Alice" },
+  ]);
+  expect(parseTrailers("")).toStrictEqual([]);
 });
 
-void test("directives scanning classifies directives and pairs blocks", async () => {
-  const { mergeDirectives, scanFileForDirectives } =
-    await import("../src/lib/collectors/directives.ts");
-
+test("directives scanning classifies directives and pairs blocks", () => {
   const fileA = [
     "const a = 1;",
     "",
@@ -140,27 +147,29 @@ void test("directives scanning classifies directives and pairs blocks", async ()
     scanFileForDirectives(fileC),
   ]);
 
-  assert.equal(output.eslintNextLine.count, 1);
-  assert.deepEqual(output.eslintNextLine.byRule, {
+  expect(output.eslintNextLine.count).toBe(1);
+  expect(output.eslintNextLine.byRule).toStrictEqual({
     "no-console": 1,
     "unicorn/no-null": 1,
   });
-  assert.equal(output.eslintLine.count, 1);
-  assert.deepEqual(output.eslintLine.byRule, { "no-magic-numbers": 1 });
-  assert.equal(output.eslintBlocks.count, 2);
-  assert.equal(output.eslintBlocks.closedCount, 1);
-  assert.equal(output.eslintBlocks.unboundedCount, 1);
-  assert.equal(output.eslintBlocks.coveredLines, 9);
-  assert.deepEqual(output.eslintBlocks.byRule, { "no-alert": 1, "(all)": 1 });
-  assert.deepEqual(output.tsDirectives, {
+  expect(output.eslintLine.count).toBe(1);
+  expect(output.eslintLine.byRule).toStrictEqual({ "no-magic-numbers": 1 });
+  expect(output.eslintBlocks.count).toBe(2);
+  expect(output.eslintBlocks.closedCount).toBe(1);
+  expect(output.eslintBlocks.unboundedCount).toBe(1);
+  expect(output.eslintBlocks.coveredLines).toBe(9);
+  expect(output.eslintBlocks.byRule).toStrictEqual({
+    "no-alert": 1,
+    "(all)": 1,
+  });
+  expect(output.tsDirectives).toStrictEqual({
     ignore: 1,
     expectError: 1,
     nocheck: 1,
   });
 });
 
-void test("parseTokeiJson folds embedded children into the parent language", async () => {
-  const { parseTokeiJson } = await import("../src/lib/collectors/languages.ts");
+test("parseTokeiJson folds embedded children into the parent language", () => {
   const output = parseTokeiJson(
     JSON.stringify({
       Markdown: {
@@ -198,21 +207,19 @@ void test("parseTokeiJson folds embedded children into the parent language", asy
     }),
   );
 
-  assert.deepEqual(output.byLanguage["Markdown"], {
+  expect(output.byLanguage["Markdown"]).toStrictEqual({
     files: 1,
     code: 0,
     comments: 90,
     blanks: 10,
     lines: 110,
   });
-  assert.equal(output.byLanguage["TypeScript"]?.lines, 125);
-  assert.equal(output.totalLines, 235);
-  assert.equal(output.totalFiles, 2);
+  expect(output.byLanguage["TypeScript"]?.lines).toBe(125);
+  expect(output.totalLines).toBe(235);
+  expect(output.totalFiles).toBe(2);
 });
 
-void test("parseBlamePorcelain attributes lines to authors and cohorts", async () => {
-  const { parseBlamePorcelain } =
-    await import("../src/lib/collectors/survival.ts");
+test("parseBlamePorcelain attributes lines to authors and cohorts", () => {
   const stdout = [
     "abc123 1 1 2",
     "author Alice",
@@ -236,21 +243,18 @@ void test("parseBlamePorcelain attributes lines to authors and cohorts", async (
   ].join("\n");
 
   const attributions = parseBlamePorcelain(stdout);
-  assert.equal(attributions.length, 3);
-  assert.deepEqual(attributions[0], {
+  expect(attributions.length).toBe(3);
+  expect(attributions[0]).toStrictEqual({
     authorEmail: "alice@example.com",
     cohortMonth: "2026-01",
   });
-  assert.deepEqual(attributions[2], {
+  expect(attributions[2]).toStrictEqual({
     authorEmail: "bob@example.com",
     cohortMonth: "2025-07",
   });
 });
 
-void test("parsePnpmLockfile counts resolved and direct deps, version-aware", async () => {
-  const { parsePnpmLockfile } =
-    await import("../src/lib/collectors/dependencies.ts");
-
+test("parsePnpmLockfile counts resolved and direct deps, version-aware", () => {
   // A monorepo: React 19 in one package, React 18 in another → two prod deps.
   const summary = parsePnpmLockfile(
     [
@@ -287,7 +291,7 @@ void test("parsePnpmLockfile counts resolved and direct deps, version-aware", as
     ].join("\n"),
   );
 
-  assert.deepEqual(summary, {
+  expect(summary).toStrictEqual({
     packageManager: "pnpm",
     lockfileVersion: "9.0",
     resolvedCount: 4,
@@ -296,10 +300,7 @@ void test("parsePnpmLockfile counts resolved and direct deps, version-aware", as
   });
 });
 
-void test("parsePnpmLockfile skips pnpm's package-manager document", async () => {
-  const { parsePnpmLockfile } =
-    await import("../src/lib/collectors/dependencies.ts");
-
+test("parsePnpmLockfile skips pnpm's package-manager document", () => {
   // First document manages pnpm itself; only the second is a real lockfile.
   const summary = parsePnpmLockfile(
     [
@@ -335,7 +336,7 @@ void test("parsePnpmLockfile skips pnpm's package-manager document", async () =>
     ].join("\n"),
   );
 
-  assert.deepEqual(summary, {
+  expect(summary).toStrictEqual({
     packageManager: "pnpm",
     lockfileVersion: "9.0",
     resolvedCount: 1,
@@ -344,15 +345,11 @@ void test("parsePnpmLockfile skips pnpm's package-manager document", async () =>
   });
 });
 
-void test("parsePnpmLockfile returns undefined for non-lockfile content", async () => {
-  const { parsePnpmLockfile } =
-    await import("../src/lib/collectors/dependencies.ts");
-  assert.equal(parsePnpmLockfile("just a string"), undefined);
+test("parsePnpmLockfile returns undefined for non-lockfile content", () => {
+  expect(parsePnpmLockfile("just a string")).toBeUndefined();
 });
 
-void test("dependencies collector normalizes lockfiles into facts", async () => {
-  const { dependenciesCollector } =
-    await import("../src/lib/collectors/dependencies.ts");
+test("dependencies collector normalizes lockfiles into facts", () => {
   const facts = dependenciesCollector.normalize({
     lockfiles: [
       {
@@ -366,7 +363,7 @@ void test("dependencies collector normalizes lockfiles into facts", async () => 
     ],
   });
 
-  assert.deepEqual(facts, [
+  expect(facts).toStrictEqual([
     {
       metric: "dependencies.resolved",
       value: 741,
@@ -402,9 +399,7 @@ void test("dependencies collector normalizes lockfiles into facts", async () => 
   ]);
 });
 
-void test("scanFileForTodos counts markers per line", async () => {
-  const { scanFileForTodos } =
-    await import("../src/lib/collectors/todo-comments.ts");
+test("scanFileForTodos counts markers per line", () => {
   const output = scanFileForTodos(
     [
       "// TODO: fix",
@@ -413,16 +408,14 @@ void test("scanFileForTodos counts markers per line", async () => {
       "// HACK",
     ].join("\n"),
   );
-  assert.equal(output.total, 4);
-  assert.deepEqual(output.byMarker, { TODO: 2, FIXME: 1, HACK: 1 });
+  expect(output.total).toBe(4);
+  expect(output.byMarker).toStrictEqual({ TODO: 2, FIXME: 1, HACK: 1 });
 });
 
 // A marker is counted anywhere on a line, so it need not open the comment.
 // These are the shapes seen in real codebases (labelled TODOs, markers tucked
 // after a `--` suppression rationale, JSX and block comments) — all must count.
-void test("scanFileForTodos matches markers embedded mid-line", async () => {
-  const { scanFileForTodos } =
-    await import("../src/lib/collectors/todo-comments.ts");
+test("scanFileForTodos matches markers embedded mid-line", () => {
   const output = scanFileForTodos(
     [
       "// TODO (Ada Lovelace) [2024-01-01]: extract a helper",
@@ -433,6 +426,6 @@ void test("scanFileForTodos matches markers embedded mid-line", async () => {
       "const label = 'a todo written in prose stays uncounted';",
     ].join("\n"),
   );
-  assert.equal(output.total, 5);
-  assert.deepEqual(output.byMarker, { TODO: 3, FIXME: 1, HACK: 1 });
+  expect(output.total).toBe(5);
+  expect(output.byMarker).toStrictEqual({ TODO: 3, FIXME: 1, HACK: 1 });
 });

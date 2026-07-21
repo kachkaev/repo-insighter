@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
@@ -9,19 +8,19 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
 
 import { Effect } from "effect";
+import { expect, test } from "vitest";
 
 import { withTemporaryWorktree } from "../src/lib/worktree.ts";
 
 function runGit(cwd: string, ...args: readonly string[]) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
+  expect(result.status, result.stderr).toBe(0);
   return result.stdout;
 }
 
-void test("withTemporaryWorktree checks out inertly and cleans up", async () => {
+test("withTemporaryWorktree checks out inertly and cleans up", async () => {
   const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-wt-"));
 
   try {
@@ -56,13 +55,12 @@ void test("withTemporaryWorktree checks out inertly and cleans up", async () => 
       ),
     );
 
-    assert.equal(sawFile, true);
-    assert.equal(existsSync(markerPath), false, "repo hook must not run");
-    assert.equal(
+    expect(sawFile).toBe(true);
+    expect(existsSync(markerPath), "repo hook must not run").toBe(false);
+    expect(
       existsSync(seenWorktreePath),
-      false,
       "temporary worktree must be removed",
-    );
+    ).toBe(false);
   } finally {
     rmSync(repoPath, { force: true, recursive: true });
   }
