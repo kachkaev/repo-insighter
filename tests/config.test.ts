@@ -1,10 +1,9 @@
-import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
 
 import { Effect } from "effect";
+import { expect, test } from "vitest";
 
 import { defineConfig } from "../src/config.ts";
 import {
@@ -14,23 +13,23 @@ import {
   resolveConfig,
 } from "../src/lib/config.ts";
 
-void test("defineConfig returns its argument unchanged", () => {
+test("defineConfig returns its argument unchanged", () => {
   const config = { contributors: { maxInCharts: 7 } };
-  assert.equal(defineConfig(config), config);
+  expect(defineConfig(config)).toBe(config);
 });
 
-void test("resolveConfig defaults with no contributor config", () => {
+test("resolveConfig defaults with no contributor config", () => {
   const resolved = resolveConfig({});
-  assert.equal(resolved.maxInCharts, defaultMaxInCharts);
+  expect(resolved.maxInCharts).toBe(defaultMaxInCharts);
   const contributor = resolved.resolveContributor("carol@example.com", "Carol");
-  assert.equal(contributor.label, "carol@example.com");
-  assert.equal(contributor.canonicalEmail, "carol@example.com");
-  assert.equal(contributor.displayName, undefined);
-  assert.equal(contributor.url, undefined);
-  assert.equal(contributor.kind, "human");
+  expect(contributor.label).toBe("carol@example.com");
+  expect(contributor.canonicalEmail).toBe("carol@example.com");
+  expect(contributor.displayName).toBeUndefined();
+  expect(contributor.url).toBeUndefined();
+  expect(contributor.kind).toBe("human");
 });
 
-void test("resolveConfig folds aliases into the first (canonical) entry", () => {
+test("resolveConfig folds aliases into the first (canonical) entry", () => {
   const resolved = resolveConfig({
     contributors: {
       aliases: [
@@ -42,42 +41,37 @@ void test("resolveConfig folds aliases into the first (canonical) entry", () => 
       ],
     },
   });
-  assert.equal(
-    resolved.resolveContributor("alice@personal.example").label,
+  expect(resolved.resolveContributor("alice@personal.example").label).toBe(
     "alice@work.example",
   );
-  assert.equal(
+  expect(
     resolved.resolveContributor("12345+alice@users.noreply.github.com").label,
-    "alice@work.example",
-  );
+  ).toBe("alice@work.example");
   // Canonical stays itself.
-  assert.equal(
-    resolved.resolveContributor("alice@work.example").label,
+  expect(resolved.resolveContributor("alice@work.example").label).toBe(
     "alice@work.example",
   );
 });
 
-void test("resolveConfig matches aliases case-insensitively", () => {
+test("resolveConfig matches aliases case-insensitively", () => {
   const resolved = resolveConfig({
     contributors: {
       aliases: [["Alice@Work.Example", "alice@personal.example"]],
     },
   });
-  assert.equal(
-    resolved.resolveContributor("ALICE@personal.EXAMPLE").label,
+  expect(resolved.resolveContributor("ALICE@personal.EXAMPLE").label).toBe(
     "Alice@Work.Example",
   );
 });
 
-void test("resolveConfig still prettifies a canonical noreply address", () => {
+test("resolveConfig still prettifies a canonical noreply address", () => {
   const resolved = resolveConfig({});
-  assert.equal(
+  expect(
     resolved.resolveContributor("12345+bob@users.noreply.github.com").label,
-    "bob",
-  );
+  ).toBe("bob");
 });
 
-void test("resolveConfig applies displayName, url and kind from a rich alias group", () => {
+test("resolveConfig applies displayName, url and kind from a rich alias group", () => {
   const resolved = resolveConfig({
     contributors: {
       aliases: [
@@ -91,15 +85,15 @@ void test("resolveConfig applies displayName, url and kind from a rich alias gro
     },
   });
   const contributor = resolved.resolveContributor("alice@personal.example");
-  assert.equal(contributor.label, "Alice");
-  assert.equal(contributor.displayName, "Alice");
-  assert.equal(contributor.url, "https://github.com/alice");
-  assert.equal(contributor.kind, "ai");
+  expect(contributor.label).toBe("Alice");
+  expect(contributor.displayName).toBe("Alice");
+  expect(contributor.url).toBe("https://github.com/alice");
+  expect(contributor.kind).toBe("ai");
   // The email column still shows the (prettified) canonical email.
-  assert.equal(contributor.canonicalEmail, "alice@work.example");
+  expect(contributor.canonicalEmail).toBe("alice@work.example");
 });
 
-void test("resolveConfig matches an alias by its prettified noreply handle", () => {
+test("resolveConfig matches an alias by its prettified noreply handle", () => {
   // Config lists the handle a user sees in the report; the raw commit email is
   // the full GitHub noreply address.
   const resolved = resolveConfig({
@@ -110,31 +104,28 @@ void test("resolveConfig matches an alias by its prettified noreply handle", () 
   const contributor = resolved.resolveContributor(
     "98765+ziggy@users.noreply.github.com",
   );
-  assert.equal(contributor.label, "Ziggy");
-  assert.equal(contributor.displayName, "Ziggy");
+  expect(contributor.label).toBe("Ziggy");
+  expect(contributor.displayName).toBe("Ziggy");
 });
 
-void test("deriveContributorKind classifies bots and AI agents", () => {
-  assert.equal(deriveContributorKind("Alice <alice@example.com>"), "human");
-  assert.equal(
+test("deriveContributorKind classifies bots and AI agents", () => {
+  expect(deriveContributorKind("Alice <alice@example.com>")).toBe("human");
+  expect(
     deriveContributorKind(
       "renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>",
     ),
+  ).toBe("bot");
+  expect(deriveContributorKind("dependabot[bot] <dependabot[bot]>")).toBe(
     "bot",
   );
-  assert.equal(
-    deriveContributorKind("dependabot[bot] <dependabot[bot]>"),
-    "bot",
-  );
-  assert.equal(
+  expect(
     deriveContributorKind(
       "Copilot <198982749+Copilot@users.noreply.github.com>",
     ),
-    "ai",
-  );
+  ).toBe("ai");
 });
 
-void test("resolveConfig derives kind when the config omits it", () => {
+test("resolveConfig derives kind when the config omits it", () => {
   const resolved = resolveConfig({
     contributors: {
       aliases: [{ emails: ["Copilot"], displayName: "Copilot" }],
@@ -144,69 +135,59 @@ void test("resolveConfig derives kind when the config omits it", () => {
     "198982749+Copilot@users.noreply.github.com",
     "Copilot",
   );
-  assert.equal(contributor.kind, "ai");
+  expect(contributor.kind).toBe("ai");
 });
 
-void test("resolveConfig rejects malformed config", () => {
-  assert.throws(
-    () => resolveConfig({ contributors: "nope" }),
+test("resolveConfig rejects malformed config", () => {
+  expect(() => resolveConfig({ contributors: "nope" })).toThrow(
     /`contributors` must be an object/,
   );
-  assert.throws(
-    () => resolveConfig({ contributors: { aliases: "nope" } }),
+  expect(() => resolveConfig({ contributors: { aliases: "nope" } })).toThrow(
     /`contributors.aliases` must be an array/,
   );
-  assert.throws(
-    () => resolveConfig({ contributors: { aliases: [[]] } }),
+  expect(() => resolveConfig({ contributors: { aliases: [[]] } })).toThrow(
     /must be a non-empty array/,
   );
-  assert.throws(
-    () => resolveConfig({ contributors: { aliases: [[""]] } }),
+  expect(() => resolveConfig({ contributors: { aliases: [[""]] } })).toThrow(
     /must be a non-empty string/,
   );
-  assert.throws(
-    () =>
-      resolveConfig({
-        contributors: { aliases: [{ emails: ["a@x"], kind: "robot" }] },
-      }),
-    /must be one of "human", "bot" or "ai"/,
-  );
-  assert.throws(
-    () => resolveConfig({ contributors: { maxInCharts: 0 } }),
+  expect(() =>
+    resolveConfig({
+      contributors: { aliases: [{ emails: ["a@x"], kind: "robot" }] },
+    }),
+  ).toThrow(/must be one of "human", "bot" or "ai"/);
+  expect(() => resolveConfig({ contributors: { maxInCharts: 0 } })).toThrow(
     /must be an integer between 1 and 100/,
   );
-  assert.throws(
-    () => resolveConfig({ contributors: { maxInCharts: 3.5 } }),
+  expect(() => resolveConfig({ contributors: { maxInCharts: 3.5 } })).toThrow(
     /must be an integer between 1 and 100/,
   );
 });
 
-void test("resolveConfig rejects an email shared across alias groups", () => {
-  assert.throws(
-    () =>
-      resolveConfig({
-        contributors: {
-          aliases: [
-            ["alice@work.example", "shared@example.com"],
-            ["bob@work.example", "shared@example.com"],
-          ],
-        },
-      }),
-    /appears in more than one alias group/,
-  );
+test("resolveConfig rejects an email shared across alias groups", () => {
+  expect(() =>
+    resolveConfig({
+      contributors: {
+        aliases: [
+          ["alice@work.example", "shared@example.com"],
+          ["bob@work.example", "shared@example.com"],
+        ],
+      },
+    }),
+  ).toThrow(/appears in more than one alias group/);
 });
 
-void test("loadConfig returns defaults when no config file exists", async () => {
+test("loadConfig returns defaults when no config file exists", async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-cfg-"));
   try {
     const resolved = await Effect.runPromise(loadConfig(dir));
-    assert.equal(resolved.maxInCharts, defaultMaxInCharts);
+    expect(resolved.maxInCharts).toBe(defaultMaxInCharts);
   } finally {
     rmSync(dir, { force: true, recursive: true });
   }
 });
 
-void test("loadConfig imports a .mjs config file", async () => {
+test("loadConfig imports a .mjs config file", async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-cfg-"));
   try {
     writeFileSync(
@@ -214,9 +195,8 @@ void test("loadConfig imports a .mjs config file", async () => {
       'export default { contributors: { maxInCharts: 15, aliases: [["a@x.example", "a@y.example"]] } };\n',
     );
     const resolved = await Effect.runPromise(loadConfig(dir));
-    assert.equal(resolved.maxInCharts, 15);
-    assert.equal(
-      resolved.resolveContributor("a@y.example").label,
+    expect(resolved.maxInCharts).toBe(15);
+    expect(resolved.resolveContributor("a@y.example").label).toBe(
       "a@x.example",
     );
   } finally {
@@ -224,15 +204,14 @@ void test("loadConfig imports a .mjs config file", async () => {
   }
 });
 
-void test("loadConfig fails with a friendly message on a malformed config", async () => {
+test("loadConfig fails with a friendly message on a malformed config", async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-cfg-"));
   try {
     writeFileSync(
       path.join(dir, "repo-insighter.config.mjs"),
       "export default { contributors: { maxInCharts: -1 } };\n",
     );
-    await assert.rejects(
-      Effect.runPromise(loadConfig(dir)),
+    await expect(Effect.runPromise(loadConfig(dir))).rejects.toThrow(
       /Invalid repo-insighter config/,
     );
   } finally {
