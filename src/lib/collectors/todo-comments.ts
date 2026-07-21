@@ -57,12 +57,12 @@ export const todoCommentsCollector: Collector = {
   version: "2",
   strategy: "tree",
   defaultSampling: "all",
-  collect: ({ repoRoot, sha }) =>
+  collect: ({ repoRoot, sha, cacheKey }) =>
     scanTreeWithBlobCache({
       repoRoot,
       sha,
       collectorName: "todo-comments",
-      collectorVersion: "1",
+      cacheKey,
       scanContent: scanFileForTodos,
     }).pipe(
       Effect.map((files) => mergeTodos(files.map((file) => file.result))),

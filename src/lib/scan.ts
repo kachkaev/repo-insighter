@@ -6,8 +6,10 @@ import {
   openCatalog,
   writeCollectorOutput,
 } from "./catalog.ts";
+import { collectorCacheKey } from "./collectors/cache-key.ts";
 import { resolveCollectors } from "./collectors/roster.ts";
 import type { Collector } from "./collectors/types.ts";
+import { loadConfig } from "./config.ts";
 import { GitCommandError, runGit } from "./git.ts";
 import {
   parseSamplingPolicy,
@@ -107,17 +109,19 @@ const runCollector = ({
   catalog,
   sha,
   collector,
+  cacheKey,
   worktreePath,
 }: {
   readonly catalog: Catalog;
   readonly sha: string;
   readonly collector: Collector;
+  readonly cacheKey: string;
   readonly worktreePath?: string | undefined;
 }): Effect.Effect<void, Error> =>
   Effect.gen(function* () {
     const startedAt = Date.now();
     const output = yield* collector
-      .collect({ repoRoot: catalog.repoRoot, sha, worktreePath })
+      .collect({ repoRoot: catalog.repoRoot, sha, cacheKey, worktreePath })
       .pipe(
         Effect.mapError(
           (error) =>
@@ -130,6 +134,7 @@ const runCollector = ({
       catalog,
       sha,
       collector,
+      cacheKey,
       output,
       durationMs: Date.now() - startedAt,
     });
@@ -139,12 +144,14 @@ const collectCommit = ({
   catalog,
   sha,
   collectors,
+  cacheKeyOf,
   force,
   failures,
 }: {
   readonly catalog: Catalog;
   readonly sha: string;
   readonly collectors: readonly Collector[];
+  readonly cacheKeyOf: (collector: Collector) => string;
   readonly force: boolean;
   /** Failed runs are recorded here instead of aborting the whole scan. */
   readonly failures: string[];
@@ -154,7 +161,10 @@ const collectCommit = ({
     let skipped = 0;
 
     for (const collector of collectors) {
-      if (!force && (yield* isCollected(catalog, sha, collector))) {
+      if (
+        !force &&
+        (yield* isCollected(catalog, sha, collector, cacheKeyOf(collector)))
+      ) {
         skipped += 1;
       } else {
         pending.push(collector);
@@ -170,7 +180,12 @@ const collectCommit = ({
 
     let run = 0;
     for (const collector of direct) {
-      const outcome = yield* runCollector({ catalog, sha, collector }).pipe(
+      const outcome = yield* runCollector({
+        catalog,
+        sha,
+        collector,
+        cacheKey: cacheKeyOf(collector),
+      }).pipe(
         Effect.map(() => true),
         Effect.catch((error) => {
           failures.push(error.message);
@@ -187,7 +202,13 @@ const collectCommit = ({
         Effect.forEach(
           needingWorktree,
           (collector) =>
-            runCollector({ catalog, sha, collector, worktreePath }).pipe(
+            runCollector({
+              catalog,
+              sha,
+              collector,
+              cacheKey: cacheKeyOf(collector),
+              worktreePath,
+            }).pipe(
               Effect.map(() => {
                 run += 1;
               }),
@@ -248,6 +269,18 @@ export const runScan = ({
     const catalog = yield* openCatalog(repoRoot);
     const summary = summarizeCommits(commits);
 
+    // One fingerprint per collector for the whole run: the config it depends on
+    // is fixed, so this decides re-collection uniformly across every commit.
+    const config = yield* loadConfig(repoRoot);
+    const cacheKeys = new Map(
+      collectors.map((collector) => [
+        collector.name,
+        collectorCacheKey(collector, config),
+      ]),
+    );
+    const cacheKeyOf = (collector: Collector): string =>
+      cacheKeys.get(collector.name) ?? collectorCacheKey(collector, config);
+
     const plans = collectors.map((collector) => {
       const policy = sampleOverride ?? collector.defaultSampling;
       return {
@@ -283,7 +316,10 @@ export const runScan = ({
       }
       const pending = new Set<string>();
       for (const sha of plan.shas) {
-        if (force || !(yield* isCollected(catalog, sha, collector))) {
+        if (
+          force ||
+          !(yield* isCollected(catalog, sha, collector, cacheKeyOf(collector)))
+        ) {
           pending.add(sha);
         }
       }
@@ -315,6 +351,7 @@ export const runScan = ({
             catalog,
             sha,
             collector,
+            cacheKey: cacheKeyOf(collector),
             output,
             durationMs,
           }).pipe(
@@ -366,6 +403,7 @@ export const runScan = ({
                 !batchDone.get(plan.collector.name)?.has(commit.hash),
             )
             .map((plan) => plan.collector),
+          cacheKeyOf,
           force,
           failures,
         }).pipe(

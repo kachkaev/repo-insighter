@@ -116,7 +116,7 @@
     "vitest": "4.1.10",
     "yaml": "2.9.0"
   },
-  "packageManager": "pnpm@11.15.0",
+  "packageManager": "pnpm@11.15.1",
   "engines": {
     "node": ">=22.13.0"
   },

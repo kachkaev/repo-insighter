@@ -21,7 +21,10 @@ type CatalogManifest = {
 
 type CollectorSidecar = {
   readonly collector: string;
+  /** Human-readable version — kept for inspection; `cacheKey` is the real key. */
   readonly version: string;
+  /** Cache fingerprint (version + relevant config) that decides re-collection. */
+  readonly cacheKey: string;
   readonly completedAt: string;
   readonly durationMs: number;
 };
@@ -55,9 +58,9 @@ const readJsonIfExists = (filePath: string) =>
     catch: toError,
   });
 
-const versionOf = (sidecar: unknown): unknown =>
-  typeof sidecar === "object" && sidecar !== null && "version" in sidecar
-    ? sidecar.version
+const cacheKeyOf = (sidecar: unknown): unknown =>
+  typeof sidecar === "object" && sidecar !== null && "cacheKey" in sidecar
+    ? sidecar.cacheKey
     : undefined;
 
 const formatVersionOf = (manifest: unknown): unknown =>
@@ -111,36 +114,43 @@ export const openCatalog = (repoRoot: string): Effect.Effect<Catalog, Error> =>
 const collectorDir = (catalog: Catalog, sha: string, collectorName: string) =>
   path.join(catalog.rootPath, "commits", sha, collectorName);
 
-/** Reads the version recorded in a collector's sidecar, if any. */
-export const readCollectorVersion = (
+/** Reads the cache fingerprint recorded in a collector's sidecar, if any. */
+export const readCollectorCacheKey = (
   catalog: Catalog,
   sha: string,
   collectorName: string,
 ): Effect.Effect<unknown, Error> =>
   readJsonIfExists(
     path.join(collectorDir(catalog, sha, collectorName), "collector.json"),
-  ).pipe(Effect.map(versionOf));
+  ).pipe(Effect.map(cacheKeyOf));
 
-/** A (commit, collector) pair is done when a sidecar with a matching version exists. */
+/**
+ * A (commit, collector) pair is done when a sidecar recording the current cache
+ * fingerprint exists. `cacheKey` folds in the collector version and any config
+ * it depends on, so a version bump or a relevant config change re-collects it.
+ */
 export const isCollected = (
   catalog: Catalog,
   sha: string,
   collector: Collector,
+  cacheKey: string,
 ): Effect.Effect<boolean, Error> =>
-  readCollectorVersion(catalog, sha, collector.name).pipe(
-    Effect.map((version) => version === collector.version),
+  readCollectorCacheKey(catalog, sha, collector.name).pipe(
+    Effect.map((stored) => stored === cacheKey),
   );
 
 export const writeCollectorOutput = ({
   catalog,
   sha,
   collector,
+  cacheKey,
   output,
   durationMs,
 }: {
   readonly catalog: Catalog;
   readonly sha: string;
   readonly collector: Collector;
+  readonly cacheKey: string;
   readonly output: unknown;
   readonly durationMs: number;
 }): Effect.Effect<void, Error> =>
@@ -154,6 +164,7 @@ export const writeCollectorOutput = ({
     yield* writeJson(path.join(dir, "collector.json"), {
       collector: collector.name,
       version: collector.version,
+      cacheKey,
       completedAt: new Date().toISOString(),
       durationMs,
     } satisfies CollectorSidecar);

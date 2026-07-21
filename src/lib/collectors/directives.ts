@@ -168,12 +168,12 @@ export const directivesCollector: Collector = {
   version: "1",
   strategy: "tree",
   defaultSampling: "all",
-  collect: ({ repoRoot, sha }) =>
+  collect: ({ repoRoot, sha, cacheKey }) =>
     scanTreeWithBlobCache({
       repoRoot,
       sha,
       collectorName: "directives",
-      collectorVersion: "1",
+      cacheKey,
       scanContent: scanFileForDirectives,
     }).pipe(
       Effect.map((files) => mergeDirectives(files.map((file) => file.result))),

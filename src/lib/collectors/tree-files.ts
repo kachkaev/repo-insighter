@@ -105,14 +105,15 @@ export const scanTreeFilesWithBlobCache = ({
   repoRoot,
   sha,
   collectorName,
-  collectorVersion,
+  cacheKey,
   include,
   scanContent,
 }: {
   readonly repoRoot: string;
   readonly sha: string;
   readonly collectorName: string;
-  readonly collectorVersion: string;
+  /** The collector's cache fingerprint (see {@link CollectContext.cacheKey}). */
+  readonly cacheKey: string;
   readonly include: (filePath: string) => boolean;
   /** Pure per-file scan; its JSON-encoded result is what gets cached. */
   readonly scanContent: (content: string, filePath: string) => unknown;
@@ -121,7 +122,8 @@ export const scanTreeFilesWithBlobCache = ({
     const blobs = yield* listBlobs(repoRoot, sha, include);
     const cache = getBlobCache(repoRoot);
 
-    const memoKey = (blobSha: string) => `${collectorName}:${blobSha}`;
+    const memoKey = (blobSha: string) =>
+      `${collectorName}:${cacheKey}:${blobSha}`;
     if (parsedMemo.size > parsedMemoCapacity) {
       parsedMemo.clear();
     }
@@ -135,11 +137,7 @@ export const scanTreeFilesWithBlobCache = ({
     ];
 
     // Second level: the on-disk cache survives across runs.
-    const cachedRaw = cache.getMany(
-      collectorName,
-      collectorVersion,
-      unseenShas,
-    );
+    const cachedRaw = cache.getMany(collectorName, cacheKey, unseenShas);
     for (const [blobSha, raw] of cachedRaw) {
       const parsed: unknown = JSON.parse(raw);
       parsedMemo.set(memoKey(blobSha), parsed);
@@ -162,7 +160,7 @@ export const scanTreeFilesWithBlobCache = ({
         fresh.set(blobSha, JSON.stringify(result));
         parsedMemo.set(memoKey(blobSha), result);
       }
-      cache.setMany(collectorName, collectorVersion, fresh);
+      cache.setMany(collectorName, cacheKey, fresh);
     }
 
     const results: Array<{ filePath: string; result: unknown }> = [];

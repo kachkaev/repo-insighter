@@ -1,10 +1,18 @@
 import type { Effect } from "effect";
 
+import type { ResolvedConfig } from "../config.ts";
 import type { SamplingPolicy } from "../sampling.ts";
 
 type CollectContext = {
   readonly repoRoot: string;
   readonly sha: string;
+  /**
+   * The collector's cache fingerprint for this run — a short hash of its
+   * {@link Collector.version} and {@link Collector.cacheConfig} slice. Pass it
+   * to content caches (e.g. `scanTreeWithBlobCache`) so cached results are
+   * invalidated whenever the version or the relevant config changes.
+   */
+  readonly cacheKey: string;
   /** Present only for `worktree` collectors: a detached checkout of the commit. */
   readonly worktreePath?: string | undefined;
 };
@@ -31,6 +39,15 @@ export type Collector = {
   readonly description: string;
   /** Bump to invalidate previously collected outputs of this collector. */
   readonly version: string;
+  /**
+   * The slice of resolved config that shapes this collector's *collected*
+   * output, if any. It is folded together with {@link version} into the cache
+   * fingerprint, so changing it re-collects this collector (and only this one)
+   * on the next scan. Return a JSON-serializable value; omit for collectors
+   * whose output does not depend on config. Config that only affects
+   * `normalize` must NOT go here — `index` re-runs normalization every time.
+   */
+  readonly cacheConfig?: (config: ResolvedConfig) => unknown;
   /**
    * What the collector needs: `log` — commit metadata/diffs only; `tree` —
    * object-database reads; `worktree` — a real checkout.

@@ -5,8 +5,10 @@ import { NodeServices } from "@effect/platform-node";
 import { Console, Effect } from "effect";
 import { Prompt } from "effect/unstable/cli";
 
-import { catalogDirName, readCollectorVersion } from "./catalog.ts";
+import { catalogDirName, readCollectorCacheKey } from "./catalog.ts";
+import { collectorCacheKey } from "./collectors/cache-key.ts";
 import { builtInCollectors } from "./collectors/roster.ts";
+import { loadConfig } from "./config.ts";
 import { runGit } from "./git.ts";
 import { resolveRepoRoot } from "./scan.ts";
 
@@ -61,8 +63,12 @@ const buildPlan = (repoRoot: string): Effect.Effect<GcPlan, Error> =>
         .filter(Boolean),
     );
 
-    const currentVersions = new Map(
-      builtInCollectors.map((collector) => [collector.name, collector.version]),
+    const config = yield* loadConfig(repoRoot);
+    const currentCacheKeys = new Map(
+      builtInCollectors.map((collector) => [
+        collector.name,
+        collectorCacheKey(collector, config),
+      ]),
     );
 
     const unreachableShas: string[] = [];
@@ -84,8 +90,8 @@ const buildPlan = (repoRoot: string): Effect.Effect<GcPlan, Error> =>
           (countsByCollector.get(collectorName) ?? 0) + 1,
         );
 
-        const currentVersion = currentVersions.get(collectorName);
-        if (currentVersion === undefined) {
+        const currentCacheKey = currentCacheKeys.get(collectorName);
+        if (currentCacheKey === undefined) {
           staleOutputs.push({
             sha,
             collectorName,
@@ -93,16 +99,16 @@ const buildPlan = (repoRoot: string): Effect.Effect<GcPlan, Error> =>
           });
           continue;
         }
-        const writtenVersion = yield* readCollectorVersion(
+        const writtenCacheKey = yield* readCollectorCacheKey(
           { repoRoot, rootPath: catalogPath },
           sha,
           collectorName,
         );
-        if (writtenVersion !== currentVersion) {
+        if (writtenCacheKey !== currentCacheKey) {
           staleOutputs.push({
             sha,
             collectorName,
-            reason: `version ${String(writtenVersion)} ≠ current ${currentVersion}`,
+            reason: `fingerprint ${String(writtenCacheKey)} ≠ current ${currentCacheKey}`,
           });
         }
       }

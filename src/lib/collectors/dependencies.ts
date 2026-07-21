@@ -157,8 +157,6 @@ type DependenciesOutput = {
   readonly lockfiles: readonly DependencyLockfile[];
 };
 
-const collectorVersion = "1";
-
 /**
  * Dependency counts read from package-manager lockfiles: how many packages the
  * lockfile resolves in total, and how many direct/dev dependencies the
@@ -169,15 +167,15 @@ export const dependenciesCollector: Collector = {
   name: "dependencies",
   description:
     "Dependency counts from package-manager lockfiles: total resolved packages and direct/dev dependencies (pnpm)",
-  version: collectorVersion,
+  version: "1",
   strategy: "tree",
   defaultSampling: "all",
-  collect: ({ repoRoot, sha }) =>
+  collect: ({ repoRoot, sha, cacheKey }) =>
     scanTreeFilesWithBlobCache({
       repoRoot,
       sha,
       collectorName: "dependencies",
-      collectorVersion,
+      cacheKey,
       include: (filePath) =>
         !filePath.includes("node_modules/") &&
         parserFor(filePath) !== undefined,

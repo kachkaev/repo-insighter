@@ -8,6 +8,8 @@ _Draft. Collectors are the pluggable "tools" of the map phase: each one knows ho
 type Collector = {
   readonly name: string; // "languages", "eslint", …
   readonly version: string; // bump to invalidate previous outputs
+  /** Config slice that shapes collected output; folded into the cache fingerprint */
+  readonly cacheConfig?: (config: ResolvedConfig) => unknown;
   readonly strategy: CollectionStrategy;
   /** Produce raw output for one commit; persisted verbatim into the catalog */
   readonly collect: (
@@ -25,7 +27,7 @@ type Metric = {
 };
 ```
 
-The `collect`/`normalize` split mirrors the catalog's raw-before-derived principle: `collect` is expensive and runs once per (commit, collector version); `normalize` is cheap, pure and re-runnable whenever indexing logic improves.
+The `collect`/`normalize` split mirrors the catalog's raw-before-derived principle: `collect` is expensive and runs once per (commit, cache fingerprint); `normalize` is cheap, pure and re-runnable whenever indexing logic improves. Because `normalize` re-runs on every `index`, config that only affects normalization must **not** feed `cacheConfig` — only config that changes the collected output belongs in the fingerprint.
 
 ## Collection strategies
 
@@ -48,7 +50,7 @@ The cube records which commits were sampled so charts can interpolate honestly r
 
 ## Incrementality
 
-The unit of work is **(commit, collector, collector version)**. Before running, the scanner diffs the plan against `collector.json` sidecars already in the catalog and only schedules the gap. Interrupting a scan loses at most the in-flight commits; re-running continues where it stopped. Effect's structured concurrency handles parallelism (several collectors per commit, several commits in flight) with clean cancellation.
+The unit of work is **(commit, collector, cache fingerprint)** — the fingerprint being a short hash of the collector version and the config it depends on. Before running, the scanner diffs the plan against `collector.json` sidecars already in the catalog and only schedules the gap. Interrupting a scan loses at most the in-flight commits; re-running continues where it stopped. Effect's structured concurrency handles parallelism (several collectors per commit, several commits in flight) with clean cancellation.
 
 ## Built-in roster
 

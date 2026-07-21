@@ -4,7 +4,9 @@ import path from "node:path";
 import { Console, Effect } from "effect";
 
 import { catalogDirName, isCollected } from "./catalog.ts";
+import { collectorCacheKey } from "./collectors/cache-key.ts";
 import { builtInCollectors } from "./collectors/roster.ts";
+import { loadConfig } from "./config.ts";
 import { listCommits, resolveRepoRoot } from "./scan.ts";
 
 const exists = (filePath: string) =>
@@ -23,6 +25,7 @@ export const runStatus = ({
   Effect.gen(function* () {
     const repoRoot = yield* resolveRepoRoot(repoPath);
     const commits = yield* listCommits(repoRoot);
+    const config = yield* loadConfig(repoRoot);
     const catalogPath = path.join(repoRoot, catalogDirName);
 
     if (!(yield* exists(path.join(catalogPath, "catalog.json")))) {
@@ -45,10 +48,11 @@ export const runStatus = ({
 
     for (const collector of builtInCollectors) {
       let collected = 0;
+      const cacheKey = collectorCacheKey(collector, config);
       yield* Effect.forEach(
         commits,
         (commit) =>
-          isCollected(catalog, commit.hash, collector).pipe(
+          isCollected(catalog, commit.hash, collector, cacheKey).pipe(
             Effect.map((done) => {
               if (done) {
                 collected += 1;

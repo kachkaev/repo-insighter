@@ -23,7 +23,7 @@ A dot-folder at the root of the analyzed repository:
     <full-sha>/
       commit-meta/        # one subfolder per collector
         output.json       # the collector's raw output, stored verbatim
-        collector.json    # sidecar: collector name+version, timing (the incrementality marker)
+        collector.json    # sidecar: collector name+version, cacheKey fingerprint, timing (the incrementality marker)
       churn/
         output.json
         collector.json
@@ -38,7 +38,7 @@ A dot-folder at the root of the analyzed repository:
 ## Design notes
 
 - **Per-commit, per-collector folders** make the catalog greppable and debuggable by hand — a design goal in itself. Raw outputs are the source of truth; everything under `index/` can be deleted and rebuilt.
-- **`collector.json` sidecar** records the collector version and a hash of its inputs, which is what makes incrementality and cache invalidation possible: a (commit, collector@version) pair with a sidecar present is done; bumping a collector's version invalidates only its own outputs.
+- **`collector.json` sidecar** records the collector version and a `cacheKey` — a short fingerprint (sha256, 12 hex) over the version and the slice of config the collector depends on (`Collector.cacheConfig`). This is what makes incrementality and cache invalidation possible: a (commit, collector) pair whose sidecar carries the current `cacheKey` is done. Bumping a collector's version or changing the config it depends on changes the fingerprint and invalidates only that collector's outputs; config that only affects `normalize` is deliberately excluded, since `index` re-normalizes every time. The same `cacheKey` namespaces the per-blob cache, so it invalidates in lockstep.
 - **Sharding**: repos with 100k+ commits would strain some filesystems with flat `commits/<sha>/`. If that bites, shard as `commits/ab/<sha>/` (first byte of sha) — decision deferred until measured.
 - **Deduplication**: distinct commits often share identical trees or blobs. Tree-level content addressing (store per-tree collector outputs under `trees/<tree-sha>/`, referenced from commits) can save large amounts of work and space — borrowed from hercules/git-loc blob caching. Planned as an optimization once the naive layout works; `collector.json` input hashes leave room for it.
 - **Format versioning**: `catalog.json` carries a `formatVersion`; incompatible changes trigger an explicit migrate-or-recollect prompt rather than silent corruption.
