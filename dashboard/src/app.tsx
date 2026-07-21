@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { BarList } from "./components/bar-list.tsx";
 import { DivergingBars } from "./components/diverging-bars.tsx";
@@ -265,6 +265,7 @@ export function App({ data }: { data: DashboardData }) {
   const latestFileTypes = data.fileTypes.at(-1);
   const dependencies = data.dependencies;
   const latestDependencies = dependencies.at(-1);
+  const [shadeContributorsByYear, setShadeContributorsByYear] = useState(true);
 
   const aiShareRecent = useMemo(() => {
     const cutoff = Date.now() - 90 * 86_400_000;
@@ -378,13 +379,18 @@ export function App({ data }: { data: DashboardData }) {
     };
   }, [data.survival, survivalYearScale]);
 
+  const survivalHasYearData = useMemo(
+    () => data.survival.some((row) => row.byContributorYear !== undefined),
+    [data.survival],
+  );
+
   const survivalAuthorChart = useMemo((): StackedChart | undefined => {
     if (data.survival.length === 0) {
       return;
     }
-    // Pre-per-year dashboard.json lacks byContributorYear — fall back to a flat
-    // contributor stack without age bands.
-    if (data.survival.every((row) => row.byContributorYear === undefined)) {
+    // Flat one-color-per-contributor stack when age shading is off, or when a
+    // pre-per-year dashboard.json has no byContributorYear to shade with.
+    if (!shadeContributorsByYear || !survivalHasYearData) {
       return shapeStacked(
         data.survival.map((row) => ({
           date: row.date,
@@ -401,7 +407,13 @@ export function App({ data }: { data: DashboardData }) {
       maxContributorsInCharts,
       survivalYearScale,
     );
-  }, [data.survival, maxContributorsInCharts, survivalYearScale]);
+  }, [
+    data.survival,
+    shadeContributorsByYear,
+    survivalHasYearData,
+    maxContributorsInCharts,
+    survivalYearScale,
+  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">
@@ -574,6 +586,19 @@ export function App({ data }: { data: DashboardData }) {
           title="Code survival by contributor"
           subtitle="who wrote the lines that are still alive"
         >
+          {survivalHasYearData && (
+            <label className="mb-3 flex items-center justify-end gap-2 text-xs text-(--text-secondary) select-none">
+              <input
+                type="checkbox"
+                checked={shadeContributorsByYear}
+                onChange={(event) => {
+                  setShadeContributorsByYear(event.target.checked);
+                }}
+                className="size-3.5 accent-(--series-1)"
+              />
+              Shade by year written
+            </label>
+          )}
           <TimeSeriesChart mode="area" {...survivalAuthorChart} />
         </Section>
       )}
