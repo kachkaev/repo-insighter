@@ -11,7 +11,7 @@ npx repo-dive index      [--repo PATH]
 npx repo-dive dashboard  [--repo PATH] [--port N] [--open]
 npx repo-dive status     [--repo PATH]
 npx repo-dive collectors
-npx repo-dive gc         [--repo PATH] [--unreachable] [--stale] [--collectors a,b] [--dry-run] [--yes]
+npx repo-dive gc         [--repo PATH] [--unreachable] [--off-mainline] [--stale] [--collectors a,b] [--dry-run] [--yes]
 npx repo-dive report     [--repo PATH] [--out PATH] [--open]
 npx repo-dive query      [--repo PATH] [--json] "<sql>"
 npx repo-dive mcp        [--repo PATH]
@@ -20,6 +20,7 @@ npx repo-dive mcp        [--repo PATH]
 - **`scan`** — the map phase. Enumerates commits, decides which (commit, collector) pairs still need work, runs collectors and fills the catalog with raw snapshots. Safe to interrupt and re-run; shows progress and an ETA. Flags to scope work: `--collectors`, `--sample` (see [collectors](04-collectors.md)), `--since`, `--max-commits`.
 - **`index`** — the reduce phase. Normalizes raw snapshots into the SQLite cube. Fast, idempotent, re-runnable from scratch (`--rebuild`) since raw data is the source of truth.
 - **`status`** — inspects the catalog: which collectors have run over which commit ranges, catalog size, index freshness. The "where am I?" command for the multi-step workflow.
+- **`gc`** — reclaims catalog space. Each flag names one kind of dead weight: `--unreachable` drops whole commit folders git can no longer reach; `--off-mainline` drops tree/worktree snapshots stored under commits that are reachable but not on HEAD's first-parent chain (see [collectors](04-collectors.md)) — `log` outputs are kept, since a commit's own metadata is a fact wherever the commit sits; `--stale` drops catalog outputs and blob-cache entries whose collector fingerprint no longer matches any registered collector. Run without flags it lists what it found and asks; `--dry-run` reports the same plan without touching anything.
 - **`report`** — exports the dashboard as one self-contained HTML file (bundle + data inlined) for sharing and presentations.
 - **`query`** — escape hatch: run a read-only SQL query against the cube and print rows (table or `--json`).
 - **`mcp`** — serve the cube over the Model Context Protocol (stdio) with `schema` and `query` tools, so AI agents can explore a scanned repository.

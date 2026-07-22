@@ -12,7 +12,6 @@ Known-important items not yet done, in rough priority order. See also [specs/06-
 
 - **Docs drift**: specs 03/04 don't yet document the blob cache (`.repo-dive/cache/blob-cache.sqlite`, content-addressed per-blob results) or `collectBatch`; sync them.
 - **Perf, next lever**: tree collectors each run their own `ls-tree` per commit — share one listing per commit across collectors. After that, survival is the bottleneck; an incremental diff-based line-tracking algorithm (hercules-style burndown) would replace per-snapshot blame if quarterly sampling still feels coarse/slow.
-- **gc**: blob cache is not covered by `gc` yet (only commits/ is); add cache pruning. Separately, snapshots taken off HEAD's first-parent chain by older versions are now excluded from the cube but cannot be reclaimed — `--unreachable` compares against `rev-list HEAD`, which still reaches them (27k such outputs on react). Wants a `--off-mainline` mode, or for `--unreachable` to drop tree/worktree collector folders that `rev-list --first-parent HEAD` misses.
 - **Windows**: untested end to end (paths, `open` command, worktrees).
 
 ## Housekeeping

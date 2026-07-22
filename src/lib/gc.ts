@@ -5,6 +5,11 @@ import { NodeServices } from "@effect/platform-node";
 import { Console, Effect } from "effect";
 import { Prompt } from "effect/unstable/cli";
 
+import {
+  type BlobCacheNamespace,
+  listBlobCacheNamespaces,
+  pruneBlobCacheNamespaces,
+} from "./blob-cache.ts";
 import { catalogDirName, readCollectorCacheKey } from "./catalog.ts";
 import { collectorCacheKey } from "./collectors/cache-key.ts";
 import { builtInCollectors } from "./collectors/roster.ts";
@@ -49,6 +54,8 @@ type GcPlan = {
   readonly staleOutputs: readonly StaleOutput[];
   /** Output counts per collector present in the catalog. */
   readonly countsByCollector: ReadonlyMap<string, number>;
+  /** Blob-cache namespaces no registered collector can ever look up again. */
+  readonly staleCacheNamespaces: readonly BlobCacheNamespace[];
 };
 
 const buildPlan = (repoRoot: string): Effect.Effect<GcPlan, Error> =>
@@ -114,12 +121,29 @@ const buildPlan = (repoRoot: string): Effect.Effect<GcPlan, Error> =>
       }
     }
 
+    // A cache namespace is live only while some registered collector still
+    // computes the very fingerprint it was written under; anything else is
+    // unreachable by construction, since lookups key on exactly that pair.
+    const liveNamespaces = new Set(
+      [...currentCacheKeys].map(
+        ([collectorName, cacheKey]) => `${collectorName}:${cacheKey}`,
+      ),
+    );
+    const staleCacheNamespaces = (yield* Effect.try({
+      try: () => listBlobCacheNamespaces(repoRoot),
+      catch: toError,
+    })).filter(
+      (namespace) =>
+        !liveNamespaces.has(`${namespace.collector}:${namespace.cacheKey}`),
+    );
+
     return {
       catalogPath,
       commitsPath,
       unreachableShas,
       staleOutputs,
       countsByCollector,
+      staleCacheNamespaces,
     };
   });
 
@@ -157,6 +181,24 @@ const pruneEmptyCommitDirs = (
     }
     return pruned;
   });
+
+const staleCacheEntryCount = (plan: GcPlan): number =>
+  plan.staleCacheNamespaces.reduce(
+    (total, namespace) => total + namespace.entryCount,
+    0,
+  );
+
+/** Human-readable size, e.g. "3.4 MB". */
+const formatBytes = (bytes: number): string => {
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${unitIndex === 0 ? value : value.toFixed(1)} ${units[unitIndex]}`;
+};
 
 export const runGc = ({
   repoPath,
@@ -203,9 +245,20 @@ export const runGc = ({
           value: { kind: "unreachable" },
         });
       }
-      if (plan.staleOutputs.length > 0) {
+      if (
+        plan.staleOutputs.length > 0 ||
+        plan.staleCacheNamespaces.length > 0
+      ) {
+        const parts = [
+          ...(plan.staleOutputs.length > 0
+            ? [`${plan.staleOutputs.length} collector outputs`]
+            : []),
+          ...(plan.staleCacheNamespaces.length > 0
+            ? [`${staleCacheEntryCount(plan)} blob-cache entries`]
+            : []),
+        ];
         choices.push({
-          title: `${plan.staleOutputs.length} stale collector outputs (old versions or removed collectors)`,
+          title: `Stale ${parts.join(" and ")} (old versions or removed collectors)`,
           value: { kind: "stale" },
         });
       }
@@ -263,6 +316,13 @@ export const runGc = ({
       );
       reportLines.push(`${plan.staleOutputs.length} stale collector outputs`);
     }
+    const pruneCacheNamespaces =
+      removeStale && plan.staleCacheNamespaces.length > 0;
+    if (pruneCacheNamespaces) {
+      reportLines.push(
+        `${staleCacheEntryCount(plan)} stale blob-cache entries`,
+      );
+    }
     for (const name of collectorsToRemove) {
       const count = plan.countsByCollector.get(name) ?? 0;
       if (count === 0) {
@@ -278,7 +338,7 @@ export const runGc = ({
       reportLines.push(`${count} outputs of collector "${name}"`);
     }
 
-    if (targets.length === 0) {
+    if (targets.length === 0 && !pruneCacheNamespaces) {
       yield* Console.log("Nothing to garbage-collect.");
       return;
     }
@@ -301,9 +361,17 @@ export const runGc = ({
 
     yield* removePaths(targets, false);
     const pruned = yield* pruneEmptyCommitDirs(plan.commitsPath);
+    const cacheBytesReclaimed = pruneCacheNamespaces
+      ? yield* Effect.try({
+          try: () =>
+            pruneBlobCacheNamespaces(repoRoot, plan.staleCacheNamespaces),
+          catch: toError,
+        })
+      : 0;
 
     yield* Console.log(
-      `${summary}${pruned > 0 ? ` Pruned ${pruned} empty commit folders.` : ""} ` +
+      `${summary}${pruned > 0 ? ` Pruned ${pruned} empty commit folders.` : ""}` +
+        `${cacheBytesReclaimed > 0 ? ` Blob cache shrank by ${formatBytes(cacheBytesReclaimed)}.` : ""} ` +
         "Run `repo-dive index` to refresh rollups.",
     );
   }).pipe(Effect.provide(NodeServices.layer));

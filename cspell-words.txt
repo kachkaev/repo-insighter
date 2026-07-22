@@ -51,6 +51,7 @@ repoinsights
 rollups
 scc
 scriptable
+shm
 Sigstore
 simonw
 smol
