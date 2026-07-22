@@ -81,6 +81,38 @@ export default defineConfig({
 
 `contributors.aliases` merges the multiple identities one person commits under (work + personal email, GitHub noreply, name variants) so attribution, the contributors table and code-survival-by-contributor count them once; a group can also carry a `displayName`, a profile `url` and a `kind` (`human`/`bot`/`ai`, otherwise auto-derived — the dashboard badges bots and AI agents and lists them apart from humans). The config is read by `index`. See [docs/specs/07-config.md](docs/specs/07-config.md) for details.
 
+## AI agents (MCP)
+
+`repo-dive mcp` serves the metrics cube over the Model Context Protocol on stdio, so an agent can explore a repository's history by asking SQL questions. Two tools:
+
+- **`schema`** — tables, available metrics with row counts, sample category keys per metric and the commit range; worth calling before writing queries.
+- **`query`** — one read-only statement (`SELECT`/`WITH`/`EXPLAIN`) against the cube, returning `{ columns, rows, truncated }` (up to 200 rows).
+
+Run `scan` and `index` first: the server exits immediately if there is no cube at `.repo-dive/index/metrics.sqlite`. The database is opened read-only, so nothing an agent asks can change the catalog.
+
+For [Claude Code](https://code.claude.com/docs/en/mcp), run this inside the repository you want to ask questions about:
+
+```sh
+claude mcp add repo-dive -- npx -y repo-dive mcp
+```
+
+Or commit a project-scoped `.mcp.json` at the repository root, so everyone on the team gets the same server:
+
+```json
+{
+  "mcpServers": {
+    "repo-dive": {
+      "command": "npx",
+      "args": ["-y", "repo-dive", "mcp"]
+    }
+  }
+}
+```
+
+Then ask things like "which languages grew fastest last year?" or "how has the share of AI-assisted commits changed?".
+
+The same stdio server works with any MCP client — point yours at `npx repo-dive mcp`, adding `--repo /path/to/repo` if the client does not start it inside the repository being analyzed.
+
 ## Development
 
 The project is written in TypeScript with [Effect](https://effect.website) v4 (beta) and its built-in CLI toolkit (`effect/unstable/cli`).
