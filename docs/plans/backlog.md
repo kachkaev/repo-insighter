@@ -6,7 +6,6 @@ Known-important items not yet done, in rough priority order. See also [specs/06-
 
 - **README demo assets**: generate screenshots/report from a large public repo (e.g. facebook/react — a full scan takes ~1–2 h, dominated by quarterly blame snapshots; scan/index have been validated at that scale: 21.6k commits → 319k facts, index < 5 s).
 - **Dashboard interactions**: time-range brush/filter; author/language filters; commit drill-down on chart hover.
-- **MCP docs**: README shows the `mcp` command; add a `.mcp.json` example for wiring it into Claude Code / other agents.
 
 ## Engineering
 
