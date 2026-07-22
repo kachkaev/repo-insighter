@@ -17,10 +17,10 @@ export default defineConfig({
       ["alice@work.example", "alice@personal.example"],
       // Rich form: a display name, a profile link and an explicit kind.
       {
-        emails: ["bob@work.example", "12345+bob@users.noreply.github.com"],
         displayName: "Bob",
-        url: "https://github.com/bob",
+        emails: ["bob@work.example", "12345+bob@users.noreply.github.com"],
         kind: "human",
+        url: "https://github.com/bob",
       },
     ],
     // How many contributors charts keep before folding the rest into "Other".

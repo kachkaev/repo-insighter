@@ -2,10 +2,7 @@ import { Console, Effect } from "effect";
 import { Command } from "effect/unstable/cli";
 
 import { builtInCollectors } from "../lib/collectors/roster.ts";
-
-const samplingLabel = (
-  policy: (typeof builtInCollectors)[number]["defaultSampling"],
-) => (typeof policy === "object" ? `every-nth:${policy.everyNth}` : policy);
+import { samplingLabel } from "../lib/sampling.ts";
 
 export const collectorsCommand = Command.make("collectors").pipe(
   Command.withDescription(

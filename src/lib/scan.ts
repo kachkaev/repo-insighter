@@ -14,6 +14,7 @@ import { GitCommandError, runGit } from "./git.ts";
 import {
   parseSamplingPolicy,
   sampleCommits,
+  samplingLabel,
   type SamplingPolicy,
 } from "./sampling.ts";
 import { withTemporaryWorktree } from "./worktree.ts";
@@ -229,9 +230,6 @@ const collectCommit = ({
 
     return { run, skipped };
   });
-
-const samplingLabel = (policy: SamplingPolicy): string =>
-  typeof policy === "object" ? `every-nth:${policy.everyNth}` : policy;
 
 export const runScan = ({
   repoPath,

@@ -15,8 +15,8 @@
  *       ["alice@work.example", "alice@personal.example"],
  *       // Rich form: a display name, a profile link and a kind.
  *       {
- *         emails: ["bob@work.example", "bob@personal.example"],
  *         displayName: "Bob",
+ *         emails: ["bob@work.example", "bob@personal.example"],
  *         url: "https://github.com/bob",
  *       },
  *     ],

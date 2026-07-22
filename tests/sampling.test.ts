@@ -1,6 +1,10 @@
 import { expect, test } from "vitest";
 
-import { parseSamplingPolicy, sampleCommits } from "../src/lib/sampling.ts";
+import {
+  parseSamplingPolicy,
+  sampleCommits,
+  samplingLabel,
+} from "../src/lib/sampling.ts";
 
 function commit(hash: string, authorDate: string) {
   return {
@@ -40,6 +44,12 @@ test("sampleCommits supports every-nth", () => {
   expect(
     sampleCommits(commits, { everyNth: 2 }).map((entry) => entry.hash),
   ).toStrictEqual(["e", "c", "a"]);
+});
+
+test("samplingLabel spells out every policy shape", () => {
+  expect(samplingLabel("all")).toBe("all");
+  expect(samplingLabel("quarterly")).toBe("quarterly");
+  expect(samplingLabel({ everyNth: 3 })).toBe("every-nth:3");
 });
 
 test("parseSamplingPolicy accepts known policies and rejects others", () => {

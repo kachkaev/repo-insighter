@@ -27,6 +27,10 @@ export const parseSamplingPolicy = (input: string): SamplingPolicy | Error => {
   );
 };
 
+/** How a policy is spelled in CLI output (`collectors`, `scan`, `status`). */
+export const samplingLabel = (policy: SamplingPolicy): string =>
+  typeof policy === "object" ? `every-nth:${policy.everyNth}` : policy;
+
 const isoWeekOf = (date: Date): string => {
   const utc = new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),

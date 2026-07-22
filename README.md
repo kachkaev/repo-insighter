@@ -68,8 +68,8 @@ export default defineConfig({
       ["alice@work.example", "alice@personal.example"],
       // Rich form: a display name, a profile link and an explicit kind.
       {
-        emails: ["bob@work.example", "12345+bob@users.noreply.github.com"],
         displayName: "Bob",
+        emails: ["bob@work.example", "12345+bob@users.noreply.github.com"],
         url: "https://github.com/bob",
       },
     ],

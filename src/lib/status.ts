@@ -12,6 +12,7 @@ import {
 import { collectorCacheKey } from "./collectors/cache-key.ts";
 import { builtInCollectors } from "./collectors/roster.ts";
 import { loadConfig } from "./config.ts";
+import { sampleCommits, samplingLabel } from "./sampling.ts";
 import { listCommits, resolveRepoRoot } from "./scan.ts";
 
 const exists = (filePath: string) =>
@@ -55,10 +56,14 @@ export const runStatus = ({
     ];
 
     for (const collector of builtInCollectors) {
+      // Count against what the collector is actually meant to cover: a monthly
+      // collector on a busy repo is complete at a handful of commits, and
+      // reporting it as `1/45` reads as barely started.
+      const target = sampleCommits(commits, collector.defaultSampling);
       let collected = 0;
       const cacheKey = collectorCacheKey(collector, config);
       yield* Effect.forEach(
-        commits,
+        target,
         (commit) =>
           isCollected(catalog, commit.hash, collector, cacheKey).pipe(
             Effect.map((done) => {
@@ -70,7 +75,10 @@ export const runStatus = ({
         { concurrency: 16, discard: true },
       );
       lines.push(
-        `  ${collector.name}: ${collected}/${commits.length} commits collected`,
+        collector.defaultSampling === "all"
+          ? `  ${collector.name}: ${collected}/${target.length} commits collected`
+          : `  ${collector.name}: ${collected}/${target.length} commits collected` +
+              ` (${samplingLabel(collector.defaultSampling)} sample of ${commits.length})`,
       );
     }
 
