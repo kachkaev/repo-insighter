@@ -12,8 +12,9 @@ Checked before committing to the name: `repo-dive` and `repodive` are free on np
 
 ## Catalog
 
-- Self-ignoring catalog (`.repo-dive/.gitignore` containing `*`) vs appending to the repo's `.gitignore` — leaning self-ignoring.
-- When to introduce sha sharding and tree-level deduplication (measure first).
+- ~~Self-ignoring catalog vs appending to the repo's `.gitignore`~~ — answered: self-ignoring. Creating the catalog writes `.repo-dive/.gitignore` containing `*` and never touches the analyzed repo's own files.
+- When to introduce sha sharding and tree-level deduplication of catalog outputs (measure first). Blob-level deduplication is done — see the [blob cache](03-catalog.md#blob-cache).
+- Pruning the blob cache: `gc` covers `commits/` only, so `cache/blob-cache.sqlite` grows without bound and can only be reclaimed by deleting it.
 - Lock mechanism for concurrent runs.
 
 ## Collectors
@@ -36,7 +37,7 @@ Checked before committing to the name: `repo-dive` and `repodive` are free on np
 
 ## Scope
 
-- Branch handling: walk first-parent history of the default branch only (simplest, likely v1) vs all branches/merges.
+- ~~Branch handling: first-parent history only vs everything reachable~~ — answered by strategy rather than globally: `log` collectors see every commit reachable from HEAD, while `tree` and `worktree` collectors are restricted to HEAD's first-parent chain, since only those trees are states the repository passed through (see [collectors](04-collectors.md#sampling)). Still open: whether anything should walk branches other than HEAD's.
 - Shallow clones and partial clones: detect and warn, or attempt to unshallow?
 - Monorepos: per-directory scoping (`--path`) as a first-class filter?
 - Other VCSs: git-only for now and for the foreseeable future, but a very distant Mercurial/Jujutsu/Pijul future shouldn't be structurally impossible — the catalog manifest records the VCS, and git-specific code stays behind the collector/runner seam rather than leaking into the cube model.
