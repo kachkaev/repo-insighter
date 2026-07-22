@@ -304,6 +304,6 @@ export const runGc = ({
 
     yield* Console.log(
       `${summary}${pruned > 0 ? ` Pruned ${pruned} empty commit folders.` : ""} ` +
-        "Run `repo-insighter index` to refresh rollups.",
+        "Run `repo-dive index` to refresh rollups.",
     );
   }).pipe(Effect.provide(NodeServices.layer));

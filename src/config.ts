@@ -1,12 +1,12 @@
 /**
- * Public configuration surface for repo-insighter.
+ * Public configuration surface for repo-dive.
  *
- * Drop a `repo-insighter.config.ts` (or `.mjs`/`.js`) at the root of the
+ * Drop a `repo-dive.config.ts` (or `.mjs`/`.js`) at the root of the
  * repository you analyze and export a `defineConfig(...)` call as the default
  * export. Everything keeps working with zero config; this only refines it.
  *
  * ```ts
- * import { defineConfig } from "repo-insighter/config";
+ * import { defineConfig } from "repo-dive/config";
  *
  * export default defineConfig({
  *   contributors: {
@@ -67,14 +67,12 @@ export type ContributorsConfig = {
   readonly maxInCharts?: number;
 };
 
-export type RepoInsighterConfig = {
+export type RepoDiveConfig = {
   readonly contributors?: ContributorsConfig;
 };
 
 /**
- * Identity helper that gives `repo-insighter.config.ts` full type-checking and
+ * Identity helper that gives `repo-dive.config.ts` full type-checking and
  * editor IntelliSense. It returns its argument unchanged.
  */
-export const defineConfig = (
-  config: RepoInsighterConfig,
-): RepoInsighterConfig => config;
+export const defineConfig = (config: RepoDiveConfig): RepoDiveConfig => config;

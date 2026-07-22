@@ -3,7 +3,12 @@ import path from "node:path";
 
 import { Console, Effect } from "effect";
 
-import { catalogDirName, isCollected } from "./catalog.ts";
+import {
+  catalogDirName,
+  findLegacyCatalog,
+  isCollected,
+  legacyCatalogHint,
+} from "./catalog.ts";
 import { collectorCacheKey } from "./collectors/cache-key.ts";
 import { builtInCollectors } from "./collectors/roster.ts";
 import { loadConfig } from "./config.ts";
@@ -29,11 +34,14 @@ export const runStatus = ({
     const catalogPath = path.join(repoRoot, catalogDirName);
 
     if (!(yield* exists(path.join(catalogPath, "catalog.json")))) {
+      const legacyRootPath = yield* findLegacyCatalog(repoRoot);
       yield* Console.log(
         [
           `Repository: ${repoRoot}`,
           `Commits: ${commits.length}`,
-          `No catalog found at ${catalogPath} — run \`repo-insighter scan\` first.`,
+          legacyRootPath === undefined
+            ? `No catalog found at ${catalogPath} — run \`repo-dive scan\` first.`
+            : legacyCatalogHint(legacyRootPath),
         ].join("\n"),
       );
       return;

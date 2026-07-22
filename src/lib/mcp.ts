@@ -120,7 +120,7 @@ export const buildMcpLayer = (
       Layer.provide(handlers),
       Layer.provide(
         McpServer.layerStdio({
-          name: "repo-insighter",
+          name: "repo-dive",
           version: packageJson.version,
         }),
       ),

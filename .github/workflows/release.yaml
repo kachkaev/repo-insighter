@@ -15,7 +15,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   release:
     environment: release
-    if: github.repository == 'kachkaev/repo-insighter'
+    if: github.repository == 'kachkaev/repo-dive'
     name: Release
     permissions:
       contents: write

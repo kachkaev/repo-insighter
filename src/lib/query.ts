@@ -29,7 +29,7 @@ export const executeQuery = (
   const dbPath = path.join(repoRoot, catalogDirName, "index", "metrics.sqlite");
   if (!existsSync(dbPath)) {
     throw new Error(
-      `No metrics cube at ${dbPath} — run \`repo-insighter scan\` and \`repo-insighter index\` first.`,
+      `No metrics cube at ${dbPath} — run \`repo-dive scan\` and \`repo-dive index\` first.`,
     );
   }
   if (!/^\s*(?:select|with|explain)\b/i.test(sql)) {

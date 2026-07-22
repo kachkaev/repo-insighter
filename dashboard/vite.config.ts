@@ -12,8 +12,8 @@ export default defineConfig({
     outDir: path.join(import.meta.dirname, "../dist/dashboard"),
   },
   server: {
-    // In dev, dashboard.json is proxied from the catalog of the repo under
-    // analysis via the REPO_INSIGHTER_DATA env variable (see readme).
+    // In dev, dashboard.json is served from dashboard/public — copy one there
+    // from the catalog of whichever repo you want to look at.
     port: 5199,
   },
 });

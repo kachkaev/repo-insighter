@@ -16,6 +16,7 @@ env
 esbuild
 explorable
 gilot
+gitext
 gitinspector
 gitstats
 Gource
@@ -44,6 +45,8 @@ Pijul
 pnp
 Rebuildability
 rebuildable
+repodive
+repodiving
 repoinsights
 rollups
 scc
@@ -59,10 +62,12 @@ Tornhill
 treemap
 tsc
 uncazzy
+undashed
 VCS
 VCSs
 visx
 Vite
+wagoodman
 worktree
 worktrees
 xdg

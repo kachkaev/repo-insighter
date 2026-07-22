@@ -21,7 +21,7 @@ export const withTemporaryWorktree = <A>(
 ): Effect.Effect<A, Error> =>
   Effect.gen(function* () {
     const parentDir = yield* Effect.tryPromise({
-      try: () => mkdtemp(path.join(os.tmpdir(), "repo-insighter-wt-")),
+      try: () => mkdtemp(path.join(os.tmpdir(), "repo-dive-wt-")),
       catch: toError,
     });
     const worktreePath = path.join(parentDir, sha.slice(0, 12));

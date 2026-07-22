@@ -1,4 +1,19 @@
-# repo-insighter
+# repo-dive
+
+## 0.4.0
+
+### Minor Changes
+
+- **Renamed from `repo-insighter` to `repo-dive`.** The old name was a working title — "insighter" is not a word, and it was awkward to say and easy to misspell. Install `repo-dive` instead; `repo-insighter` is deprecated on npm and receives no further releases.
+
+  Everything user-facing follows the new name:
+
+  - **Package and command** — `npx repo-dive`, and the config entry point is now `repo-dive/config`.
+  - **Catalog folder** — `.repo-insighter/` → `.repo-dive/`. Existing catalogs are **not** migrated automatically, but they are not silently ignored either: running against a repo that still has the old folder fails with a message telling you to `mv .repo-insighter .repo-dive`, so a full re-scan is never triggered by accident.
+  - **Config file** — `repo-insighter.config.ts` → `repo-dive.config.ts` (`.mts`/`.mjs`/`.js` likewise). The old filename is no longer read; rename it by hand.
+  - **Exported type** — `RepoInsighterConfig` → `RepoDiveConfig`. `defineConfig` is unchanged, so configs that only import it need no edit beyond the package name.
+
+  No behavior changed beyond the rename. Version numbering continues from 0.3.0 rather than restarting.
 
 ## 0.3.0
 

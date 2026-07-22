@@ -13,7 +13,7 @@ export const reportCommand = Command.make("report", {
   outPath: Flag.optional(
     Flag.string("out").pipe(
       Flag.withDescription(
-        "Where to write the report (defaults to .repo-insighter/index/report.html)",
+        "Where to write the report (defaults to .repo-dive/index/report.html)",
       ),
     ),
   ),

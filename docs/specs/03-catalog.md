@@ -1,22 +1,22 @@
 # Catalog
 
-_Draft. The catalog is the on-disk home of everything repo-insighter derives from a repository._
+_Draft. The catalog is the on-disk home of everything repo-dive derives from a repository._
 
 ## Location
 
 A dot-folder at the root of the analyzed repository:
 
 ```text
-<repo>/.repo-insighter/
+<repo>/.repo-dive/
 ```
 
-- Lives inside the repo so that the derived data travels with the working copy and is trivially discoverable, but is **never committed**: `scan` offers to append `/.repo-insighter/` to `.gitignore` (or writes `.repo-insighter/.gitignore` containing `*` so the catalog self-ignores — leaning toward the latter, zero-touch option).
+- Lives inside the repo so that the derived data travels with the working copy and is trivially discoverable, but is **never committed**: `scan` offers to append `/.repo-dive/` to `.gitignore` (or writes `.repo-dive/.gitignore` containing `*` so the catalog self-ignores — leaning toward the latter, zero-touch option).
 - Folder name is a working title, like the package name (see [open questions](06-open-questions.md)). An `--out` flag and an environment variable will allow relocation (e.g. to an external disk for huge repos).
 
 ## Layout
 
 ```text
-.repo-insighter/
+.repo-dive/
   .gitignore              # "*" — the catalog ignores itself
   catalog.json            # manifest: format version, tool version, vcs ("git"), repo identity, config
   commits/

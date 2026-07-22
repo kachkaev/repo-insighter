@@ -35,7 +35,7 @@ export type Fact = {
  */
 export type Collector = {
   readonly name: string;
-  /** One-line human description shown by `repo-insighter collectors`. */
+  /** One-line human description shown by `repo-dive collectors`. */
   readonly description: string;
   /** Bump to invalidate previously collected outputs of this collector. */
   readonly version: string;

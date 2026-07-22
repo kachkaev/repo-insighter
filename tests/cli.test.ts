@@ -44,7 +44,7 @@ const commitEnvironment = {
 };
 
 function createFixtureRepo(): string {
-  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-test-"));
+  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-dive-test-"));
   runGit(repoPath, "init", "-b", "main");
 
   for (const [key, value] of Object.entries(commitEnvironment)) {
@@ -105,12 +105,7 @@ test("scan collects snapshots into the catalog and is resumable", () => {
     );
 
     const headSha = runGit(repoPath, "rev-parse", "HEAD").trim();
-    const commitDir = path.join(
-      repoPath,
-      ".repo-insighter",
-      "commits",
-      headSha,
-    );
+    const commitDir = path.join(repoPath, ".repo-dive", "commits", headSha);
     for (const collector of ["commit-meta", "churn", "file-types"]) {
       expect(
         existsSync(path.join(commitDir, collector, "output.json")),
@@ -190,7 +185,7 @@ test("scan rejects unknown collectors", () => {
 });
 
 test("scan fails gracefully outside a git repository", () => {
-  const nonRepoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-no-"));
+  const nonRepoPath = mkdtempSync(path.join(os.tmpdir(), "repo-dive-no-"));
 
   try {
     const result = runCli("scan", "--repo", nonRepoPath);
@@ -264,10 +259,10 @@ test.skipIf(!dashboardBuilt)(
       expect(result.stdout).toMatch(/self-contained/);
 
       const reportHtml = readFileSync(
-        path.join(repoPath, ".repo-insighter", "index", "report.html"),
+        path.join(repoPath, ".repo-dive", "index", "report.html"),
         "utf8",
       );
-      expect(reportHtml).toMatch(/window\.__REPO_INSIGHTER_DATA__ = \{/);
+      expect(reportHtml).toMatch(/window\.__REPO_DIVE_DATA__ = \{/);
       expect(reportHtml).toMatch(/"commitCount":2/);
       expect(reportHtml).not.toMatch(/src="\/assets/);
       expect(reportHtml).not.toMatch(/<link rel="stylesheet"/);
@@ -277,8 +272,8 @@ test.skipIf(!dashboardBuilt)(
   },
 );
 
-test("index merges contributor aliases from repo-insighter.config.ts", () => {
-  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-alias-"));
+test("index merges contributor aliases from repo-dive.config.ts", () => {
+  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-dive-alias-"));
   runGit(repoPath, "init", "-b", "main");
 
   function commitAs(email: string, name: string, subject: string) {
@@ -308,10 +303,10 @@ test("index merges contributor aliases from repo-insighter.config.ts", () => {
 
     // A .ts config (exercises Node's type stripping through the real CLI). The
     // `defineConfig` import is covered by unit tests — a temp repo has no
-    // node_modules to resolve `repo-insighter/config` from, so use a typed
+    // node_modules to resolve `repo-dive/config` from, so use a typed
     // plain object here.
     writeFileSync(
-      path.join(repoPath, "repo-insighter.config.ts"),
+      path.join(repoPath, "repo-dive.config.ts"),
       [
         "const config = {",
         "  contributors: {",
@@ -335,7 +330,7 @@ test("index merges contributor aliases from repo-insighter.config.ts", () => {
 
     const dashboard: unknown = JSON.parse(
       readFileSync(
-        path.join(repoPath, ".repo-insighter", "index", "dashboard.json"),
+        path.join(repoPath, ".repo-dive", "index", "dashboard.json"),
         "utf8",
       ),
     );
@@ -433,7 +428,7 @@ test("mcp serves the cube over stdio", async () => {
       );
       await done;
 
-      expect(output).toMatch(/"serverInfo":\{"name":"repo-insighter"/);
+      expect(output).toMatch(/"serverInfo":\{"name":"repo-dive"/);
       expect(output).toMatch(/"rows":\[\{"n":2\}\]/);
     } finally {
       server.kill();

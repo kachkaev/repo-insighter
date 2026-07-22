@@ -178,7 +178,7 @@ test("resolveConfig rejects an email shared across alias groups", () => {
 });
 
 test("loadConfig returns defaults when no config file exists", async () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-cfg-"));
+  const dir = mkdtempSync(path.join(os.tmpdir(), "repo-dive-cfg-"));
   try {
     const resolved = await Effect.runPromise(loadConfig(dir));
     expect(resolved.maxInCharts).toBe(defaultMaxInCharts);
@@ -188,10 +188,10 @@ test("loadConfig returns defaults when no config file exists", async () => {
 });
 
 test("loadConfig imports a .mjs config file", async () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-cfg-"));
+  const dir = mkdtempSync(path.join(os.tmpdir(), "repo-dive-cfg-"));
   try {
     writeFileSync(
-      path.join(dir, "repo-insighter.config.mjs"),
+      path.join(dir, "repo-dive.config.mjs"),
       'export default { contributors: { maxInCharts: 15, aliases: [["a@x.example", "a@y.example"]] } };\n',
     );
     const resolved = await Effect.runPromise(loadConfig(dir));
@@ -205,14 +205,14 @@ test("loadConfig imports a .mjs config file", async () => {
 });
 
 test("loadConfig fails with a friendly message on a malformed config", async () => {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-cfg-"));
+  const dir = mkdtempSync(path.join(os.tmpdir(), "repo-dive-cfg-"));
   try {
     writeFileSync(
-      path.join(dir, "repo-insighter.config.mjs"),
+      path.join(dir, "repo-dive.config.mjs"),
       "export default { contributors: { maxInCharts: -1 } };\n",
     );
     await expect(Effect.runPromise(loadConfig(dir))).rejects.toThrow(
-      /Invalid repo-insighter config/,
+      /Invalid repo-dive config/,
     );
   } finally {
     rmSync(dir, { force: true, recursive: true });

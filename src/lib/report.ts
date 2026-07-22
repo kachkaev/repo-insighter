@@ -36,7 +36,7 @@ export const runReport = ({
     if (!existsSync(dataPath)) {
       return yield* Effect.fail(
         new Error(
-          `No dashboard data at ${dataPath} — run \`repo-insighter scan\` and \`repo-insighter index\` first.`,
+          `No dashboard data at ${dataPath} — run \`repo-dive scan\` and \`repo-dive index\` first.`,
         ),
       );
     }
@@ -59,7 +59,7 @@ export const runReport = ({
 
         // "</script>" inside the JSON payload would terminate the inline tag.
         const safeData = dataJson.replaceAll("</", String.raw`<\/`);
-        const dataTag = `<script>window.__REPO_INSIGHTER_DATA__ = ${safeData};</script>`;
+        const dataTag = `<script>window.__REPO_DIVE_DATA__ = ${safeData};</script>`;
 
         let result = indexHtml;
 

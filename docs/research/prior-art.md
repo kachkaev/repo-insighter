@@ -2,7 +2,7 @@
 
 _Research date: 2026-07-19. All GitHub/npm dates were verified against the registries and the GitHub API on that day._
 
-This document surveys existing tools that analyze git repository history and assesses how closely each matches the repo-insighter vision: an npx-runnable TypeScript CLI that walks history map-reduce style, runs pluggable collectors per commit, stores raw snapshots in a local catalog, indexes them into a queryable metrics cube and feeds visualizations and AI exploration.
+This document surveys existing tools that analyze git repository history and assesses how closely each matches the repo-dive vision: an npx-runnable TypeScript CLI that walks history map-reduce style, runs pluggable collectors per commit, stores raw snapshots in a local catalog, indexes them into a queryable metrics cube and feeds visualizations and AI exploration.
 
 ## Verdict
 

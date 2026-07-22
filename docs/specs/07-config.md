@@ -2,13 +2,13 @@
 
 _Implemented._
 
-repo-insighter runs with **zero configuration**. To refine its behavior, drop a
-`repo-insighter.config.ts` at the root of the **analyzed** repository (knip-style
-— the config lives with the repo it describes, not with repo-insighter). `.mjs`
+repo-dive runs with **zero configuration**. To refine its behavior, drop a
+`repo-dive.config.ts` at the root of the **analyzed** repository (knip-style
+— the config lives with the repo it describes, not with repo-dive). `.mjs`
 and `.js` are also accepted; the first match in that order wins.
 
 ```ts
-import { defineConfig } from "repo-insighter/config";
+import { defineConfig } from "repo-dive/config";
 
 export default defineConfig({
   contributors: {
@@ -29,11 +29,11 @@ export default defineConfig({
 });
 ```
 
-`defineConfig` is an identity helper exported from the `repo-insighter/config`
+`defineConfig` is an identity helper exported from the `repo-dive/config`
 entry point; it exists purely for type-checking and editor IntelliSense. A plain
 default-exported object works too.
 
-repo-insighter derives its metrics from each commit's git **author** (not the
+repo-dive derives its metrics from each commit's git **author** (not the
 committer). "Contributor" is the people-level concept this config describes: one
 person (or bot, or AI agent) who may commit under several author identities.
 

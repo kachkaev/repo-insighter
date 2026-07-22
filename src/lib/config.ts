@@ -9,10 +9,10 @@ import { prettifyAuthorEmail } from "./indexing.ts";
 
 /** Config file names, in resolution order. First match wins. */
 const configFileNames = [
-  "repo-insighter.config.ts",
-  "repo-insighter.config.mts",
-  "repo-insighter.config.mjs",
-  "repo-insighter.config.js",
+  "repo-dive.config.ts",
+  "repo-dive.config.mts",
+  "repo-dive.config.mjs",
+  "repo-dive.config.js",
 ];
 
 export const defaultMaxInCharts = 10;
@@ -92,7 +92,7 @@ const defaultResolvedConfig: ResolvedConfig = {
 };
 
 const configError = (message: string): Error =>
-  new Error(`Invalid repo-insighter config: ${message}`);
+  new Error(`Invalid repo-dive config: ${message}`);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -274,7 +274,7 @@ const firstExistingConfigPath = async (
 };
 
 /**
- * Loads `repo-insighter.config.*` from the analyzed repo root, if present.
+ * Loads `repo-dive.config.*` from the analyzed repo root, if present.
  *
  * `.ts` config relies on Node's built-in type stripping (unflagged on Node
  * ≥ 22.18); on older runtimes, use a `.mjs`/`.js` config instead. Returns the

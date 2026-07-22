@@ -21,7 +21,7 @@ function runGit(cwd: string, ...args: readonly string[]) {
 }
 
 test("withTemporaryWorktree checks out inertly and cleans up", async () => {
-  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-insighter-wt-"));
+  const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-dive-wt-"));
 
   try {
     runGit(repoPath, "init", "-b", "main");

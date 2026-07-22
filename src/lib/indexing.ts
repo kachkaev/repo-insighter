@@ -438,7 +438,7 @@ export const runIndex = ({
     if (orderedCommits.length === 0) {
       return yield* Effect.fail(
         new Error(
-          `No collected commits found in ${commitsPath} — run \`repo-insighter scan\` first.`,
+          `No collected commits found in ${commitsPath} — run \`repo-dive scan\` first.`,
         ),
       );
     }

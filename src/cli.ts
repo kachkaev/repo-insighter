@@ -16,7 +16,7 @@ import { runDashboard } from "./lib/dashboard-server.ts";
 import { runIndex } from "./lib/indexing.ts";
 import { runScan } from "./lib/scan.ts";
 
-const cli = Command.make("repo-insighter", {
+const cli = Command.make("repo-dive", {
   repoPath: Flag.string("repo").pipe(
     Flag.withDefault("."),
     Flag.withDescription(

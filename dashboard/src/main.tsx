@@ -14,7 +14,7 @@ const root = createRoot(rootElement);
 
 loadDashboardData().then(
   (data) => {
-    document.title = `${data.repo.name} · repo-insighter`;
+    document.title = `${data.repo.name} · repo-dive`;
     root.render(
       <StrictMode>
         <App data={data} />

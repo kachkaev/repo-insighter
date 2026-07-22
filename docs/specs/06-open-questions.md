@@ -4,11 +4,13 @@ Decisions still to make, roughly ordered by how soon they bite.
 
 ## Naming
 
-`repo-insights` on npm is taken by a [real but dormant tool](../research/prior-art.md#name-collision-on-npm). **Current draft name: `repo-insighter`** (verified free on npm 2026-07-19). Other candidates checked free the same day: `repo-insight`, `repo-metrics`, `repoinsights`; a scoped `@kachkaev/repo-insights` also remains an option. The catalog folder name (`.repo-insighter/`) follows the package name — worth settling both before first publish.
+~~What to call the tool~~ — answered 2026-07-22: **`repo-dive`**, replacing the working title `repo-insighter` ("insighter" is not a word, and it showed: hard to say, easy to misspell). The dashed form is canonical everywhere — npm package, CLI command, catalog folder (`.repo-dive/`) and config file (`repo-dive.config.ts`) — with `repodive` held on npm as a placeholder pointing at it.
+
+Checked before committing to the name: `repo-dive` and `repodive` are free on npm, crates.io and PyPI; [gitext-rs/git-dive](https://github.com/gitext-rs/git-dive) and [wagoodman/dive](https://github.com/wagoodman/dive) share the verb but not the name; CMS's [repodive-tools](https://github.com/DSACMS/repodive-tools) uses "repodiving" as a generic practice term rather than a product name. `repo-insights` on npm remains taken by a [real but dormant tool](../research/prior-art.md#name-collision-on-npm). The trade accepted: a crowded lexical neighborhood (search results are polluted by "deep dive" course repos) in exchange for a name people can say and spell.
 
 ## Catalog
 
-- Self-ignoring catalog (`.repo-insighter/.gitignore` containing `*`) vs appending to the repo's `.gitignore` — leaning self-ignoring.
+- Self-ignoring catalog (`.repo-dive/.gitignore` containing `*`) vs appending to the repo's `.gitignore` — leaning self-ignoring.
 - When to introduce sha sharding and tree-level deduplication (measure first).
 - Lock mechanism for concurrent runs.
 
@@ -27,7 +29,7 @@ Decisions still to make, roughly ordered by how soon they bite.
 ## Exploration layer
 
 - `report` output: self-contained HTML file (gitstats/git-truck lineage) vs local web app vs static image/markdown export for presentations. Presentations are a stated goal, so an export path matters early.
-- ~~AI integration~~ — answered: `repo-insighter mcp` serves the cube over MCP (stdio), and `query --json` gives agents a scriptable contract.
+- ~~AI integration~~ — answered: `repo-dive mcp` serves the cube over MCP (stdio), and `query --json` gives agents a scriptable contract.
 - Chart library and theming for whatever HTML output exists.
 
 ## Scope
@@ -39,5 +41,5 @@ Decisions still to make, roughly ordered by how soon they bite.
 
 ## Project
 
-- When to split into a monorepo (probably only when plugins become real).
-- Publish cadence: hold 0.x until `scan` + `index` + one real chart work end to end, or publish placeholder earlier to hold the name?
+- When to split into a monorepo (probably only when plugins become real — the `repodive` placeholder package is deliberately not a reason to restructure).
+- ~~Publish cadence~~ — answered: published on npm from 0.0.1, with every user-visible change landing behind a changeset.

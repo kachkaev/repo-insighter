@@ -425,7 +425,7 @@ export function App({ data }: { data: DashboardData }) {
           {data.repo.firstCommitDate
             ? `${formatDate(data.repo.firstCommitDate)} — ${formatDate(data.repo.lastCommitDate ?? "")}`
             : "no history"}{" "}
-          · generated {formatDate(data.generatedAt)} by repo-insighter
+          · generated {formatDate(data.generatedAt)} by repo-dive
         </p>
       </header>
 

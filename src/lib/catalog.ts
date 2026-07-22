@@ -5,7 +5,9 @@ import { Effect } from "effect";
 
 import type { Collector } from "./collectors/types.ts";
 
-export const catalogDirName = ".repo-insighter";
+export const catalogDirName = ".repo-dive";
+/** Catalog folder used before the tool was renamed from repo-insighter in 0.4.0. */
+const legacyCatalogDirName = ".repo-insighter";
 const catalogFormatVersion = 1;
 
 export type Catalog = {
@@ -71,19 +73,49 @@ const formatVersionOf = (manifest: unknown): unknown =>
     : undefined;
 
 /**
+ * Path of a catalog left behind by the tool's former name, if one is there.
+ * Re-collecting a whole history is expensive, so callers point at it rather
+ * than quietly starting over.
+ */
+export const findLegacyCatalog = (
+  repoRoot: string,
+): Effect.Effect<string | undefined, Error> => {
+  const legacyRootPath = path.join(repoRoot, legacyCatalogDirName);
+  return readJsonIfExists(path.join(legacyRootPath, "catalog.json")).pipe(
+    Effect.map((manifest) =>
+      manifest === undefined ? undefined : legacyRootPath,
+    ),
+  );
+};
+
+/** What to tell the user when only the former name's catalog is present. */
+export const legacyCatalogHint = (legacyRootPath: string) =>
+  `Found a catalog at ${legacyRootPath}, left by repo-insighter (this tool's former name). ` +
+  "Rename it to keep everything already collected:\n" +
+  `  mv ${legacyCatalogDirName} ${catalogDirName}\n` +
+  "Or delete it to collect from scratch.";
+
+/**
  * Opens (creating if needed) the catalog folder at the root of the analyzed
  * repository. The catalog ignores itself via its own .gitignore.
  */
 export const openCatalog = (repoRoot: string): Effect.Effect<Catalog, Error> =>
   Effect.gen(function* () {
     const rootPath = path.join(repoRoot, catalogDirName);
+    const manifestPath = path.join(rootPath, "catalog.json");
+    const manifest = yield* readJsonIfExists(manifestPath);
+
+    if (manifest === undefined) {
+      const legacyRootPath = yield* findLegacyCatalog(repoRoot);
+      if (legacyRootPath !== undefined) {
+        return yield* Effect.fail(new Error(legacyCatalogHint(legacyRootPath)));
+      }
+    }
+
     yield* Effect.tryPromise({
       try: () => mkdir(rootPath, { recursive: true }),
       catch: toError,
     });
-
-    const manifestPath = path.join(rootPath, "catalog.json");
-    const manifest = yield* readJsonIfExists(manifestPath);
 
     if (manifest === undefined) {
       yield* Effect.tryPromise({
@@ -101,7 +133,7 @@ export const openCatalog = (repoRoot: string): Effect.Effect<Catalog, Error> =>
         return yield* Effect.fail(
           new Error(
             `Catalog at ${rootPath} has format version ${String(formatVersion)}, ` +
-              `but this version of repo-insighter expects ${catalogFormatVersion}. ` +
+              `but this version of repo-dive expects ${catalogFormatVersion}. ` +
               "Delete the folder to re-collect from scratch.",
           ),
         );

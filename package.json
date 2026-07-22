@@ -1,7 +1,7 @@
 {
-  "name": "repo-insighter",
-  "version": "0.3.0",
-  "description": "Derive insights from a git repository's history: per-commit snapshots, an indexed metrics catalog and material for visualizations",
+  "name": "repo-dive",
+  "version": "0.4.0",
+  "description": "Dive into a git repository's history: per-commit snapshots, an indexed metrics catalog and an interactive dashboard",
   "keywords": [
     "git",
     "repository",
@@ -15,13 +15,13 @@
     "effect",
     "effect-ts"
   ],
-  "homepage": "https://github.com/kachkaev/repo-insighter#readme",
+  "homepage": "https://github.com/kachkaev/repo-dive#readme",
   "bugs": {
-    "url": "https://github.com/kachkaev/repo-insighter/issues"
+    "url": "https://github.com/kachkaev/repo-dive/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kachkaev/repo-insighter.git"
+    "url": "https://github.com/kachkaev/repo-dive.git"
   },
   "license": "BSD-3-Clause",
   "author": {
@@ -38,7 +38,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "repo-insighter": "./dist/cli.js"
+    "repo-dive": "./dist/cli.js"
   },
   "files": [
     "LICENSE.md",

@@ -71,7 +71,7 @@ Planned next:
 
 Two candidate mechanisms, not mutually exclusive:
 
-- **npm packages** (`repo-insighter-collector-*`) default-exporting a `Collector`, loaded via dynamic import — idiomatic, TypeScript-friendly, but code execution requires trust.
+- **npm packages** (`repo-dive-collector-*`) default-exporting a `Collector`, loaded via dynamic import — idiomatic, TypeScript-friendly, but code execution requires trust.
 - **Command protocol**: a config file maps a collector name to a shell command that receives a checkout path / commit sha and prints JSON — zero-code extensibility for anything (`tokei --output json` works as-is).
 
 The built-in roster deliberately uses the same `Collector` interface a plugin would, so the seam is proven before it is public.

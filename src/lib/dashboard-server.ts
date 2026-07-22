@@ -77,7 +77,7 @@ export const runDashboard = ({
     if (!existsSync(dataPath)) {
       return yield* Effect.fail(
         new Error(
-          `No dashboard data at ${dataPath} — run \`repo-insighter scan\` and \`repo-insighter index\` first.`,
+          `No dashboard data at ${dataPath} — run \`repo-dive scan\` and \`repo-dive index\` first.`,
         ),
       );
     }

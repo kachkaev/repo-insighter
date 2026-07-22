@@ -109,9 +109,9 @@ export type DashboardData = {
   aiIdentities: Array<{ identity: string; commits: number }>;
 };
 
-/** Inlined by `repo-insighter report` so the export works from a single file. */
-const inlinedData = (globalThis as { __REPO_INSIGHTER_DATA__?: DashboardData })
-  .__REPO_INSIGHTER_DATA__;
+/** Inlined by `repo-dive report` so the export works from a single file. */
+const inlinedData = (globalThis as { __REPO_DIVE_DATA__?: DashboardData })
+  .__REPO_DIVE_DATA__;
 
 export async function loadDashboardData(): Promise<DashboardData> {
   if (inlinedData) {
@@ -120,7 +120,7 @@ export async function loadDashboardData(): Promise<DashboardData> {
   const response = await fetch("./dashboard.json");
   if (!response.ok) {
     throw new Error(
-      `Could not load dashboard.json (${response.status}). Run \`repo-insighter index\` first.`,
+      `Could not load dashboard.json (${response.status}). Run \`repo-dive index\` first.`,
     );
   }
   return (await response.json()) as DashboardData;
