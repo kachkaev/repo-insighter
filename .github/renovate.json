@@ -16,7 +16,7 @@
       "matchPackageNames": ["effect", "@effect/**"]
     },
     {
-      "description": "Group packages released in lockstep from the React monorepo. Same story as above: `monorepo.json` lists `facebook/react`, while the published packages point at `react/react`.",
+      "description": "Group packages released in lockstep from the React monorepo. Same failure as above, from a different cause: React moved GitHub orgs, so `facebook/react` now redirects to `react/react` (same repo, id 10270250). Renovate derives `sourceUrl` from the latest published release, which reports `react/react`, and it does not follow redirects when matching — so `group:monorepos`, which still lists `facebook/react`, no longer matches. Matching on package names is immune to the move.",
       "groupName": "react monorepo",
       "matchManagers": ["npm"],
       "matchPackageNames": [
