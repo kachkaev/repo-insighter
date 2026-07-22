@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -11,6 +11,7 @@ import {
   listBlobCacheNamespaces,
   pruneBlobCacheNamespaces,
 } from "../src/lib/blob-cache.ts";
+import { openCatalog, writeCollectorOutput } from "../src/lib/catalog.ts";
 import { collectorCacheKey } from "../src/lib/collectors/cache-key.ts";
 import { builtInCollectors } from "../src/lib/collectors/roster.ts";
 import { loadConfig } from "../src/lib/config.ts";
@@ -45,17 +46,124 @@ function collectorNamed(name: string) {
   return collector;
 }
 
-function createFixtureRepo() {
+/**
+ * A repository whose history has a side branch merged back into main, so that
+ * one commit is reachable from HEAD yet off its first-parent chain.
+ */
+function createMergeFixtureRepo() {
   const repoPath = mkdtempSync(path.join(os.tmpdir(), "repo-dive-gc-"));
   runGit(repoPath, "init", "-b", "main");
+
   writeFileSync(path.join(repoPath, "hello.txt"), "hello\n");
   runGit(repoPath, "add", ".");
   runGit(repoPath, "commit", "-m", "Add hello");
-  return repoPath;
+  const baseSha = runGit(repoPath, "rev-parse", "HEAD").trim();
+
+  runGit(repoPath, "checkout", "-b", "side");
+  writeFileSync(path.join(repoPath, "side.txt"), "side\n");
+  runGit(repoPath, "add", ".");
+  runGit(repoPath, "commit", "-m", "Add side");
+  const sideSha = runGit(repoPath, "rev-parse", "HEAD").trim();
+
+  runGit(repoPath, "checkout", "main");
+  runGit(repoPath, "merge", "--no-ff", "-m", "Merge side", "side");
+  const mergeSha = runGit(repoPath, "rev-parse", "HEAD").trim();
+
+  return { repoPath, baseSha, sideSha, mergeSha };
 }
 
+/** Writes a realistic catalog output, sidecar included, for one (commit, collector). */
+async function seedOutput(
+  repoRoot: string,
+  sha: string,
+  collectorName: string,
+) {
+  const collector = collectorNamed(collectorName);
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const catalog = yield* openCatalog(repoRoot);
+      const config = yield* loadConfig(repoRoot);
+      yield* writeCollectorOutput({
+        catalog,
+        sha,
+        collector,
+        cacheKey: collectorCacheKey(collector, config),
+        output: {},
+        durationMs: 1,
+      });
+    }),
+  );
+}
+
+function outputPath(repoRoot: string, sha: string, collectorName: string) {
+  return path.join(
+    repoRoot,
+    ".repo-dive",
+    "commits",
+    sha,
+    collectorName,
+    "output.json",
+  );
+}
+
+test("gc --off-mainline reclaims snapshots off the first-parent chain only", async () => {
+  const { repoPath, baseSha, sideSha, mergeSha } = createMergeFixtureRepo();
+
+  try {
+    for (const sha of [baseSha, sideSha, mergeSha]) {
+      // file-types is a tree collector, commit-meta a log one.
+      await seedOutput(repoPath, sha, "file-types");
+      await seedOutput(repoPath, sha, "commit-meta");
+    }
+
+    await Effect.runPromise(
+      runGc({ repoPath, offMainline: true, dryRun: true, yes: true }),
+    );
+    expect(
+      existsSync(outputPath(repoPath, sideSha, "file-types")),
+      "--dry-run must leave the catalog alone",
+    ).toBe(true);
+
+    await Effect.runPromise(runGc({ repoPath, offMainline: true, yes: true }));
+
+    expect(
+      existsSync(outputPath(repoPath, sideSha, "file-types")),
+      "the side branch's tree snapshot is off the mainline",
+    ).toBe(false);
+    expect(
+      existsSync(outputPath(repoPath, sideSha, "commit-meta")),
+      "a commit's own metadata is valid wherever the commit sits",
+    ).toBe(true);
+    for (const sha of [baseSha, mergeSha]) {
+      expect(
+        existsSync(outputPath(repoPath, sha, "file-types")),
+        "mainline snapshots stay",
+      ).toBe(true);
+    }
+  } finally {
+    rmSync(repoPath, { force: true, recursive: true });
+  }
+});
+
+test("gc --unreachable leaves off-mainline snapshots alone", async () => {
+  const { repoPath, sideSha } = createMergeFixtureRepo();
+
+  try {
+    await seedOutput(repoPath, sideSha, "file-types");
+
+    await Effect.runPromise(runGc({ repoPath, unreachable: true, yes: true }));
+
+    expect(
+      existsSync(outputPath(repoPath, sideSha, "file-types")),
+      "the side commit is still reachable from HEAD",
+    ).toBe(true);
+  } finally {
+    rmSync(repoPath, { force: true, recursive: true });
+  }
+});
+
 test("gc --stale drops blob-cache namespaces no collector can look up", async () => {
-  const repoPath = createFixtureRepo();
+  const { repoPath } = createMergeFixtureRepo();
 
   try {
     const collector = collectorNamed("directives");
