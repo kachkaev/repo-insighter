@@ -17,9 +17,9 @@ npx repo-dive query      [--repo PATH] [--json] "<sql>"
 npx repo-dive mcp        [--repo PATH]
 ```
 
-- **`scan`** — the map phase. Enumerates commits, decides which (commit, collector) pairs still need work, runs collectors and fills the catalog with raw snapshots. Safe to interrupt and re-run; shows progress and an ETA. Flags to scope work: `--collectors`, `--sample` (see [collectors](04-collectors.md)), `--since`, `--max-commits`.
-- **`index`** — the reduce phase. Normalizes raw snapshots into the SQLite cube. Fast, idempotent, re-runnable from scratch (`--rebuild`) since raw data is the source of truth.
-- **`status`** — inspects the catalog: which collectors have run over which commit ranges, catalog size, index freshness. The "where am I?" command for the multi-step workflow.
+- **`scan`** — the map phase. Enumerates commits, decides which (commit, collector) pairs still need work, runs collectors and fills the catalog with raw snapshots. Safe to interrupt and re-run; shows progress and an ETA. Flags to scope work: `--collectors`, `--sample` (see [collectors](04-collectors.md)), `--max-commits`, plus `--force` to re-collect regardless of what the catalog already holds.
+- **`index`** — the reduce phase. Normalizes raw snapshots into the SQLite cube. Fast and idempotent: every run rebuilds the cube from scratch, which is safe because raw data is the source of truth.
+- **`status`** — inspects the catalog: how many commits each collector has collected out of the ones its sampling policy targets. The "where am I?" command for the multi-step workflow.
 - **`report`** — exports the dashboard as one self-contained HTML file (bundle + data inlined) for sharing and presentations.
 - **`query`** — escape hatch: run a read-only SQL query against the cube and print rows (table or `--json`).
 - **`mcp`** — serve the cube over the Model Context Protocol (stdio) with `schema` and `query` tools, so AI agents can explore a scanned repository.
