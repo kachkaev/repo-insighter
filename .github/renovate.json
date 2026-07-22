@@ -10,6 +10,25 @@
   ],
   "packageRules": [
     {
+      "description": "Group packages released in lockstep from the Effect monorepo. Renovate's own `group:monorepos` preset matches on `matchSourceUrls`, which does not work here: `monorepo.json` lists `Effect-TS/effect-smol`, while the published packages point at `Effect-TS/effect`. Matching on package names instead keeps the group working no matter where the sources move.",
+      "groupName": "effect monorepo",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["effect", "@effect/**"]
+    },
+    {
+      "description": "Group packages released in lockstep from the React monorepo. Same story as above: `monorepo.json` lists `facebook/react`, while the published packages point at `react/react`.",
+      "groupName": "react monorepo",
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "react-is",
+        "@types/react",
+        "@types/react-dom",
+        "@types/react-is"
+      ]
+    },
+    {
       "autoApprove": true,
       "automerge": true,
       "dependencyDashboardApproval": false,
