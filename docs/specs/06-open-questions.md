@@ -4,7 +4,7 @@ Decisions still to make, roughly ordered by how soon they bite.
 
 ## Naming
 
-~~What to call the tool~~ — answered 2026-07-22: **`repo-dive`**, replacing the working title `repo-insighter` ("insighter" is not a word, and it showed: hard to say, easy to misspell). The dashed form is canonical everywhere — npm package, CLI command, catalog folder (`.repo-dive/`) and config file (`repo-dive.config.ts`) — with `repodive` held on npm as a placeholder pointing at it.
+~~What to call the tool~~ — answered 2026-07-22: **`repo-dive`**, replacing the working title `repo-insighter` ("insighter" is not a word, and it showed: hard to say, easy to misspell). The dashed form is canonical everywhere — npm package, CLI command, catalog folder (`.repo-dive/`) and config file (`repo-dive.config.ts`). An undashed `repodive` placeholder was intended alongside it; npm turned out to forbid one, which is covered below.
 
 Checked before committing to the name: `repo-dive` and `repodive` are free on npm, crates.io and PyPI; [gitext-rs/git-dive](https://github.com/gitext-rs/git-dive) and [wagoodman/dive](https://github.com/wagoodman/dive) share the verb but not the name; CMS's [repodive-tools](https://github.com/DSACMS/repodive-tools) uses "repodiving" as a generic practice term rather than a product name. `repo-insights` on npm remains taken by a [real but dormant tool](../research/prior-art.md#name-collision-on-npm). The trade accepted: a crowded lexical neighborhood (search results are polluted by "deep dive" course repos) in exchange for a name people can say and spell.
 
@@ -14,7 +14,7 @@ Checked before committing to the name: `repo-dive` and `repodive` are free on np
 
 - ~~Self-ignoring catalog vs appending to the repo's `.gitignore`~~ — answered: self-ignoring. Creating the catalog writes `.repo-dive/.gitignore` containing `*` and never touches the analyzed repo's own files.
 - When to introduce sha sharding and tree-level deduplication of catalog outputs (measure first). Blob-level deduplication is done — see the [blob cache](03-catalog.md#blob-cache).
-- Pruning the blob cache: `gc` covers `commits/` only, so `cache/blob-cache.sqlite` grows without bound and can only be reclaimed by deleting it.
+- Pruning the blob cache past dead fingerprints: `gc --stale` now drops namespaces whose collector fingerprint no longer matches any registered collector, which is the part that grows without bound. Entries under a _live_ fingerprint whose blob has left the repository still stay forever. Proving such a blob dead means a full `rev-list --objects` walk, and a wrong answer costs a long re-scan — so this is worth doing only if that residue turns out to matter in practice.
 - Lock mechanism for concurrent runs.
 
 ## Collectors
