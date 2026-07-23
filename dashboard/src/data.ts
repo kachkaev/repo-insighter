@@ -65,6 +65,12 @@ type SurvivalRow = {
    */
   byContributorYear?: Record<string, Record<string, number>>;
   byExtension: Record<string, number>;
+  /**
+   * Living lines per file extension, split by the year each line was authored.
+   * Optional: absent in dashboard.json written before per-year survival by
+   * extension landed.
+   */
+  byExtensionYear?: Record<string, Record<string, number>>;
 };
 
 type ContributorKind = "human" | "bot" | "ai";
