@@ -267,6 +267,12 @@ export function App({ data }: { data: DashboardData }) {
   const latestDependencies = dependencies.at(-1);
   const [shadeContributorsByYear, setShadeContributorsByYear] = useState(false);
 
+  // Repo inception, used to anchor charts whose series start mid-history (e.g.
+  // dependencies, tracked only once a lockfile exists) to the full timeline.
+  const repoStartMs = data.repo.firstCommitDate
+    ? new Date(data.repo.firstCommitDate).getTime()
+    : undefined;
+
   const aiShareRecent = useMemo(() => {
     const cutoff = Date.now() - 90 * 86_400_000;
     const recent = data.commits.filter(
@@ -514,7 +520,11 @@ export function App({ data }: { data: DashboardData }) {
           title="Dependencies over time"
           subtitle="resolved packages in the lockfile at each commit, split by package manager"
         >
-          <TimeSeriesChart mode="area" {...dependenciesChart} />
+          <TimeSeriesChart
+            mode="area"
+            {...dependenciesChart}
+            domainStartMs={repoStartMs}
+          />
           <DataTable
             caption="View data"
             header={["date", "resolved", "direct", "dev", "optional"]}
