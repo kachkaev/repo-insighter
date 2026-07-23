@@ -1,6 +1,6 @@
 {
   "name": "repo-dive",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Dive into a git repository's history: per-commit snapshots, an indexed metrics catalog and an interactive dashboard",
   "keywords": [
     "git",

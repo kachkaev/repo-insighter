@@ -1,5 +1,54 @@
 # repo-dive
 
+## 0.5.0
+
+### Minor Changes
+
+- [#59](https://github.com/kachkaev/repo-dive/pull/59) [`566bd64`](https://github.com/kachkaev/repo-dive/commit/566bd6402728d2607dc4e91d713fb2681e465a3d) - Count direct dependencies from `package.json` manifests and chart them over time.
+
+  The dependencies collector now reads every `package.json` in a commit's tree (workspaces and root, `node_modules` excluded) and counts the `dependencies`, `devDependencies` and `optionalDependencies` it declares, plus how many manifests the tree carries.
+  `package.json` is the single source of truth for what a project _declares_, so these direct counts are accurate for every package manager — including yarn and npm v1, whose lockfiles do not record which resolved packages are direct and so previously reported zero — and even for a repository that declares dependencies before any lockfile exists.
+
+  The dashboard gains a **"Direct dependencies over time"** chart, stacked by kind (`dependencies` / `devDependencies` / `optionalDependencies`), next to the existing resolved-packages chart, and the header's dependencies tile now shows the number of `package.json` files.
+  Lockfiles keep their one job: counting the total resolved graph, split by package manager.
+  New metrics `dependencies.direct` (now sourced from manifests, categorized by manifest and kind) and `dependencies.manifest` (one per `package.json`) land in the cube.
+
+  The collector version is bumped, so run `scan` again to read manifests across the existing history.
+
+### Patch Changes
+
+- [#53](https://github.com/kachkaev/repo-dive/pull/53) [`b05cfaa`](https://github.com/kachkaev/repo-dive/commit/b05cfaae621d9e76e6a2e712697acf08f267adca) - Fix duplicate-key warnings in the contributor bar lists. `BarList` keyed each row by its label, which is a contributor's display name — not unique, since two distinct people can share a name — so React logged its "two children with the same key" console error. `BarList` items now carry a required `id` used as the key: the contributor lists pass their canonical email (the indexer guarantees one row per email), and the top-rule and AI-identity lists pass their already-unique rule/identity string.
+
+- [#57](https://github.com/kachkaev/repo-dive/pull/57) [`b5cd6c3`](https://github.com/kachkaev/repo-dive/commit/b5cd6c349a46e0e00a2cbe374ba66fdef712607f) - Enable React Compiler in the dashboard so chart hover no longer re-renders the stacked areas and bars.
+
+  The dashboard's Vite build now runs React Compiler (via `@vitejs/plugin-react`'s `reactCompilerPreset`), which auto-memoizes components.
+  Moving the cursor across a time-series or diverging-bar chart now updates only the crosshair and tooltip; the area, bar and line shapes underneath stay put instead of being reconciled on every mouse move.
+  Manual `useMemo` calls in the charts and dashboard were removed since the compiler covers them.
+  Existing dashboards render identically — nothing to re-scan.
+
+- [#62](https://github.com/kachkaev/repo-dive/pull/62) [`e115add`](https://github.com/kachkaev/repo-dive/commit/e115addfb0fb0c2eb2ddbf88878b6cb8d22872f5) - Change the dashboard's default port from `4936` to `2141`.
+  `2141` spells "DIVE" in Scrabble tile values (D=2, I=1, V=4, E=1), a nod to the project name, whereas `4936` was arbitrary.
+  It stays in the registered range and below the OS ephemeral range (Linux 32768+, macOS 49152+), so it won't randomly clash with outbound-connection source ports, and IANA has no service assigned to it.
+  The default now lives in a single shared constant instead of being duplicated across the root and `dashboard` commands.
+  Pass `--port` to override it, exactly as before.
+
+- [#54](https://github.com/kachkaev/repo-dive/pull/54) [`fa4cc9e`](https://github.com/kachkaev/repo-dive/commit/fa4cc9e69ec5a40127291ffb6c95c01447beedb9) - Read npm and yarn lockfiles in the dependencies collector, not just pnpm.
+
+  The collector now understands `package-lock.json` (npm lockfile versions 1, 2 and 3) and `yarn.lock` (both Yarn Classic v1 and Yarn Berry), alongside the existing pnpm support. Each produces the same manager-agnostic summary — resolved packages, importers and direct dependencies — so a repository that used npm or yarn before switching package managers now shows its earlier history on the "Dependencies over time" chart instead of a flat pre-pnpm stretch. npm v1 and yarn lockfiles do not record which resolved packages are direct, so their direct counts read zero.
+
+  The chart ranks package managers by their peak usage rather than their latest value, so a manager retired mid-history (yarn or npm before a pnpm migration) stays its own named series across the whole timeline instead of folding into "Other" once it disappears from the current snapshot.
+
+  Parsers now live in `src/lib/collectors/lockfile-parsers/`, one module per manager behind a small registry. Adding a future manager (cargo, bun, composer, …) is a new parser module and one line in the registry; the collector, cube and dashboard stay unchanged. The collector version is bumped, so run `scan` again to pick up the newly readable lockfiles.
+
+- [#60](https://github.com/kachkaev/repo-dive/pull/60) [`621c5bb`](https://github.com/kachkaev/repo-dive/commit/621c5bbb08923f299ca708a0d03c4253747e4558) - Actually stop the dashboard's stacked areas and bars from re-rendering while the cursor moves over a chart.
+
+  Enabling React Compiler alone did not deliver this: the compiler silently bailed (its `panicThreshold` defaults to `"none"`) on the three components that use a default value in a typed destructured parameter or the `??=` operator — including the main time-series chart — leaving them with no memoization after their `useMemo`s had been removed.
+  Those patterns are rewritten so every dashboard component now compiles.
+
+  Even compiled, the shapes still reconciled on every mouse move because they shared a parent with the hover crosshair.
+  The static marks (grid, areas, bars, lines, dots) are now their own `ChartMarks` component whose props exclude hover state, so the compiler memoizes it and hovering only updates the crosshair and tooltip.
+  No visible change.
+
 ## 0.4.3
 
 ### Patch Changes
