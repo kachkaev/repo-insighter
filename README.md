@@ -47,7 +47,7 @@ npx repo-dive gc  # clean up the catalog interactively
 - **churn** — lines added/deleted per commit, by file extension
 - **file-types** — file count and bytes per extension at each commit's tree
 - **directives** — eslint-disable comments by rule (block disables tracked as gray areas) and `@ts-ignore`/`@ts-expect-error`/`@ts-nocheck`
-- **dependencies** — total resolved packages and direct/dev dependencies from package-manager lockfiles, per package manager (pnpm so far; version-aware and monorepo-aware)
+- **dependencies** — total resolved packages and direct/dev dependencies from package-manager lockfiles, per package manager (pnpm, npm and yarn — classic and berry; version-aware and monorepo-aware, extensible to more managers)
 - **todo-comments** — TODO/FIXME/HACK/XXX counts
 - **languages** — tokei language/LOC breakdown (sampled monthly; markdown counted whole)
 - **survival** — `git blame` line survival by extension, author and age cohort (sampled monthly)
