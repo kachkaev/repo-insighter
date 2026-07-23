@@ -5,7 +5,7 @@ import { Group } from "@visx/group";
 import { scaleLinear, scaleTime } from "@visx/scale";
 import { AreaStack, BarStack, LinePath } from "@visx/shape";
 import { bisector } from "d3-array";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { formatCount, formatDate, formatPercent } from "../format.ts";
 import { Legend } from "./primitives.tsx";
@@ -92,42 +92,31 @@ export function TimeSeriesChart({
   const supportsPercent = mode !== "line" && seriesKeys.length > 1;
   const showPercent = supportsPercent && percentMode;
 
-  const rows = useMemo(
-    () =>
-      points.map((point) => {
-        const row: Record<string, number> = { dateMs: point.dateMs };
-        for (const key of seriesKeys) {
-          row[key] = point.values[key] ?? 0;
-        }
-        return row;
-      }),
-    [points, seriesKeys],
-  );
+  const rows = points.map((point) => {
+    const row: Record<string, number> = { dateMs: point.dateMs };
+    for (const key of seriesKeys) {
+      row[key] = point.values[key] ?? 0;
+    }
+    return row;
+  });
 
   /** Per-row sums across every series — the denominator for shares. */
-  const totals = useMemo(
-    () =>
-      rows.map((row) =>
-        seriesKeys.reduce((sum, key) => sum + (row[key] ?? 0), 0),
-      ),
-    [rows, seriesKeys],
+  const totals = rows.map((row) =>
+    seriesKeys.reduce((sum, key) => sum + (row[key] ?? 0), 0),
   );
 
   // What the marks are drawn from: raw values, or per-row shares in % mode.
   // Tooltips always read the raw `rows` so both value and share can be shown.
-  const displayRows = useMemo(() => {
-    if (!showPercent) {
-      return rows;
-    }
-    return rows.map((row, index) => {
-      const total = totals[index] ?? 0;
-      const shares: Record<string, number> = { dateMs: row["dateMs"] ?? 0 };
-      for (const key of seriesKeys) {
-        shares[key] = total === 0 ? 0 : (row[key] ?? 0) / total;
-      }
-      return shares;
-    });
-  }, [rows, totals, seriesKeys, showPercent]);
+  const displayRows = showPercent
+    ? rows.map((row, index) => {
+        const total = totals[index] ?? 0;
+        const shares: Record<string, number> = { dateMs: row["dateMs"] ?? 0 };
+        for (const key of seriesKeys) {
+          shares[key] = total === 0 ? 0 : (row[key] ?? 0) / total;
+        }
+        return shares;
+      })
+    : rows;
 
   const innerWidth = Math.max(10, width - margin.left - margin.right);
   const innerHeight = height - margin.top - margin.bottom;
@@ -137,78 +126,62 @@ export function TimeSeriesChart({
   // half a bucket slot so every bar sits inside the plot area. Areas and lines
   // want their points on the edges, so they keep the full range. Any marks that
   // overlay a bar chart (e.g. a trend line) share this scale and stay aligned.
-  const xInset = useMemo(
-    () => (mode === "bar" ? innerWidth / Math.max(1, rows.length) / 2 : 0),
-    [mode, innerWidth, rows.length],
-  );
+  const xInset = mode === "bar" ? innerWidth / Math.max(1, rows.length) / 2 : 0;
 
-  const xScale = useMemo(() => {
-    const dates = rows.map((row) => row["dateMs"] ?? 0);
-    let min = Math.min(...dates);
-    let max = Math.max(...dates);
-    // Widen (never crop) the domain to any caller-supplied bounds, so a series
-    // that begins mid-history is drawn against the repo's full timeline.
-    if (domainStartMs !== undefined) {
-      min = Math.min(min, domainStartMs);
-    }
-    if (domainEndMs !== undefined) {
-      max = Math.max(max, domainEndMs);
-    }
-    if (min === max) {
-      // A single point collapses the time scale; pad it by two weeks.
-      min -= 14 * 86_400_000;
-      max += 14 * 86_400_000;
-    }
-    return scaleTime({
-      domain: [min, max],
-      range: [xInset, innerWidth - xInset],
-    });
-  }, [rows, innerWidth, xInset, domainStartMs, domainEndMs]);
+  const xDates = rows.map((row) => row["dateMs"] ?? 0);
+  let xMin = Math.min(...xDates);
+  let xMax = Math.max(...xDates);
+  // Widen (never crop) the domain to any caller-supplied bounds, so a series
+  // that begins mid-history is drawn against the repo's full timeline.
+  if (domainStartMs !== undefined) {
+    xMin = Math.min(xMin, domainStartMs);
+  }
+  if (domainEndMs !== undefined) {
+    xMax = Math.max(xMax, domainEndMs);
+  }
+  if (xMin === xMax) {
+    // A single point collapses the time scale; pad it by two weeks.
+    xMin -= 14 * 86_400_000;
+    xMax += 14 * 86_400_000;
+  }
+  const xScale = scaleTime({
+    domain: [xMin, xMax],
+    range: [xInset, innerWidth - xInset],
+  });
 
-  const yMax = useMemo(() => {
-    let max = 0;
-    for (const row of rows) {
-      const total =
-        mode === "line"
-          ? Math.max(...seriesKeys.map((key) => row[key] ?? 0))
-          : seriesKeys.reduce((sum, key) => sum + (row[key] ?? 0), 0);
-      max = Math.max(max, total);
-    }
-    return max || 1;
-  }, [rows, seriesKeys, mode]);
+  let yPeak = 0;
+  for (const row of rows) {
+    const total =
+      mode === "line"
+        ? Math.max(...seriesKeys.map((key) => row[key] ?? 0))
+        : seriesKeys.reduce((sum, key) => sum + (row[key] ?? 0), 0);
+    yPeak = Math.max(yPeak, total);
+  }
+  const yMax = yPeak || 1;
 
-  const yScale = useMemo(
-    () =>
-      showPercent
-        ? scaleLinear({ domain: [0, 1], range: [innerHeight, 0] })
-        : scaleLinear({
-            domain: [0, yMax * 1.05],
-            range: [innerHeight, 0],
-            nice: true,
-          }),
-    [yMax, innerHeight, showPercent],
-  );
+  const yScale = showPercent
+    ? scaleLinear({ domain: [0, 1], range: [innerHeight, 0] })
+    : scaleLinear({
+        domain: [0, yMax * 1.05],
+        range: [innerHeight, 0],
+        nice: true,
+      });
 
-  const bisectDate = useMemo(
-    () => bisector<Record<string, number>, number>((row) => row["dateMs"] ?? 0),
-    [],
+  const bisectDate = bisector<Record<string, number>, number>(
+    (row) => row["dateMs"] ?? 0,
   );
 
   // The topmost sub-series of every group but the last — where a crisp divider
   // is drawn between adjacent primary categories.
-  const groupBoundaryKeys = useMemo(() => {
-    const keys = new Set<string>();
-    if (!separateGroups || !tooltipGroups) {
-      return keys;
-    }
+  const groupBoundaryKeys = new Set<string>();
+  if (separateGroups && tooltipGroups) {
     for (const group of tooltipGroups.slice(0, -1)) {
       const top = group.keys.at(-1);
       if (top !== undefined) {
-        keys.add(top);
+        groupBoundaryKeys.add(top);
       }
     }
-    return keys;
-  }, [separateGroups, tooltipGroups]);
+  }
 
   const handleMove = (event: React.MouseEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();

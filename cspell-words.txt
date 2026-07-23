@@ -36,11 +36,13 @@ maat
 matplotlib
 MCP
 mergestat
+mousemove
 msgpackr
 mts
 npmjs
 numstat
 onefetch
+oxc
 Picci
 Pijul
 pnp

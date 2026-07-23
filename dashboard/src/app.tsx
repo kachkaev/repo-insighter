@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { BarList } from "./components/bar-list.tsx";
 import { DivergingBars } from "./components/diverging-bars.tsx";
@@ -316,76 +316,59 @@ export function App({ data }: { data: DashboardData }) {
     ? new Date(data.repo.firstCommitDate).getTime()
     : undefined;
 
-  const aiShareRecent = useMemo(() => {
-    const cutoff = Date.now() - 90 * 86_400_000;
-    const recent = data.commits.filter(
-      (commit) => new Date(commit.date).getTime() >= cutoff,
-    );
-    if (recent.length === 0) {
-      return;
-    }
-    return (
-      recent.filter((commit) => commit.ai).length / Math.max(1, recent.length)
-    );
-  }, [data.commits]);
+  const recentCommits = data.commits.filter(
+    (commit) => new Date(commit.date).getTime() >= Date.now() - 90 * 86_400_000,
+  );
+  const aiShareRecent =
+    recentCommits.length === 0
+      ? undefined
+      : recentCommits.filter((commit) => commit.ai).length /
+        Math.max(1, recentCommits.length);
 
-  const languagesChart = useMemo(
-    () =>
-      shapeStacked(
-        data.languages.map((row) => ({
-          date: row.date,
-          values: row.byLanguage,
-        })),
-        7,
-      ),
-    [data.languages],
+  const languagesChart = shapeStacked(
+    data.languages.map((row) => ({
+      date: row.date,
+      values: row.byLanguage,
+    })),
+    7,
   );
 
-  const commitsChart = useMemo(() => {
-    const points = data.monthly.map((row) => ({
+  const commitsChart = {
+    points: data.monthly.map((row) => ({
       dateMs: new Date(`${row.month}-15`).getTime(),
       values: {
         "AI-assisted": row.aiCommits,
         Human: row.commits - row.aiCommits,
       },
-    }));
-    return {
-      points,
-      seriesKeys: ["Human", "AI-assisted"],
-      colors: ["var(--series-1)", "var(--series-5)"],
-    };
-  }, [data.monthly]);
+    })),
+    seriesKeys: ["Human", "AI-assisted"],
+    colors: ["var(--series-1)", "var(--series-5)"],
+  };
 
-  const suppressionsChart = useMemo(() => {
-    const rows = decimate(data.directives, 400);
-    return {
-      points: rows.map((row) => ({
-        dateMs: new Date(row.date).getTime(),
-        values: {
-          "eslint disables":
-            row.eslintNextLine + row.eslintLine + row.eslintBlocks,
-          "ts directives": row.tsIgnore + row.tsExpectError + row.tsNocheck,
-          "todo comments": row.todos,
-        },
-      })),
-      seriesKeys: ["eslint disables", "ts directives", "todo comments"],
-      colors: ["var(--series-6)", "var(--series-3)", "var(--series-1)"],
-    };
-  }, [data.directives]);
+  const suppressionRows = decimate(data.directives, 400);
+  const suppressionsChart = {
+    points: suppressionRows.map((row) => ({
+      dateMs: new Date(row.date).getTime(),
+      values: {
+        "eslint disables":
+          row.eslintNextLine + row.eslintLine + row.eslintBlocks,
+        "ts directives": row.tsIgnore + row.tsExpectError + row.tsNocheck,
+        "todo comments": row.todos,
+      },
+    })),
+    seriesKeys: ["eslint disables", "ts directives", "todo comments"],
+    colors: ["var(--series-6)", "var(--series-3)", "var(--series-1)"],
+  };
 
-  const dependenciesChart = useMemo(
-    () =>
-      shapeStacked(
-        decimate(dependencies, 400).map((row) => ({
-          date: row.date,
-          values: row.byPackageManager,
-        })),
-        5,
-        // A repo can switch managers over its life (npm/yarn → pnpm), so rank by
-        // peak to keep each one named rather than folding the retired ones away.
-        "peak",
-      ),
-    [dependencies],
+  const dependenciesChart = shapeStacked(
+    decimate(dependencies, 400).map((row) => ({
+      date: row.date,
+      values: row.byPackageManager,
+    })),
+    5,
+    // A repo can switch managers over its life (npm/yarn → pnpm), so rank by
+    // peak to keep each one named rather than folding the retired ones away.
+    "peak",
   );
 
   const directDependenciesTotal = latestDependencies
@@ -396,110 +379,95 @@ export function App({ data }: { data: DashboardData }) {
 
   // One age scale shared by every survival chart, so a given year reads the
   // same lightness band whether it's split by cohort or by contributor.
-  const survivalYearScale = useMemo(
-    () =>
-      makeYearScale(
-        data.survival.flatMap((row) =>
-          Object.keys(row.byCohort).map((cohortMonth) =>
-            cohortMonth.slice(0, 4),
-          ),
-        ),
-      ),
-    [data.survival],
+  const survivalYearScale = makeYearScale(
+    data.survival.flatMap((row) =>
+      Object.keys(row.byCohort).map((cohortMonth) => cohortMonth.slice(0, 4)),
+    ),
   );
 
-  const survivalCohortChart = useMemo(() => {
-    if (data.survival.length === 0) {
-      return;
-    }
-    const points = data.survival.map((row) => {
-      const values: Record<string, number> = {};
-      for (const [cohortMonth, lines] of Object.entries(row.byCohort)) {
-        const bucket = survivalYearScale.bucketOf(cohortMonth.slice(0, 4));
-        values[bucket] = (values[bucket] ?? 0) + lines;
-      }
-      return { dateMs: new Date(row.date).getTime(), values };
-    });
-    // Newest year at full color, oldest palest — matching the contributor chart.
-    const cohortBaseColor = "var(--series-1)";
-    return {
-      points,
-      seriesKeys: survivalYearScale.buckets,
-      colors: survivalYearScale.buckets.map((bucket) =>
-        survivalYearScale.colorOf(cohortBaseColor, bucket),
-      ),
-    };
-  }, [data.survival, survivalYearScale]);
+  // Newest year at full color, oldest palest — matching the contributor chart.
+  const cohortBaseColor = "var(--series-1)";
+  const survivalCohortChart =
+    data.survival.length === 0
+      ? undefined
+      : {
+          points: data.survival.map((row) => {
+            const values: Record<string, number> = {};
+            for (const [cohortMonth, lines] of Object.entries(row.byCohort)) {
+              const bucket = survivalYearScale.bucketOf(
+                cohortMonth.slice(0, 4),
+              );
+              values[bucket] = (values[bucket] ?? 0) + lines;
+            }
+            return { dateMs: new Date(row.date).getTime(), values };
+          }),
+          seriesKeys: survivalYearScale.buckets,
+          colors: survivalYearScale.buckets.map((bucket) =>
+            survivalYearScale.colorOf(cohortBaseColor, bucket),
+          ),
+        };
 
-  const languagesHasYearData = useMemo(
-    () => data.survival.some((row) => row.byExtensionYear !== undefined),
-    [data.survival],
+  const languagesHasYearData = data.survival.some(
+    (row) => row.byExtensionYear !== undefined,
   );
 
   // Blame-based alternative to the tokei chart: living lines per language
   // (approximated from file extensions), shaded by the year each line was
   // written. Languages the tokei chart also shows keep its colors so toggling
   // doesn't recolor the stack; extras take palette slots past the tokei ones.
-  const languagesYearChart = useMemo((): StackedChart | undefined => {
-    if (!languagesHasYearData) {
-      return;
-    }
-    const rows = data.survival.map((row) => {
-      const byGroupYear: Record<string, Record<string, number>> = {};
-      for (const [extension, byYear] of Object.entries(
-        row.byExtensionYear ?? {},
-      )) {
-        const language = languageOfExtension(extension);
-        const target = (byGroupYear[language] ??= {});
-        for (const [year, lines] of Object.entries(byYear)) {
-          target[year] = (target[year] ?? 0) + lines;
-        }
-      }
-      return { date: row.date, byGroupYear };
-    });
-    const tokeiKeys = languagesChart.seriesKeys;
-    return shapeYearBands(rows, 7, survivalYearScale, (label, rank) => {
-      const matched = tokeiKeys.indexOf(label);
-      const slot = matched === -1 ? tokeiKeys.length + rank : matched;
-      return categoricalColors[slot % categoricalColors.length] ?? otherColor;
-    });
-  }, [data.survival, languagesHasYearData, languagesChart, survivalYearScale]);
+  const languagesYearChart: StackedChart | undefined = languagesHasYearData
+    ? shapeYearBands(
+        data.survival.map((row) => {
+          const byGroupYear: Record<string, Record<string, number>> = {};
+          for (const [extension, byYear] of Object.entries(
+            row.byExtensionYear ?? {},
+          )) {
+            const language = languageOfExtension(extension);
+            const target = (byGroupYear[language] ??= {});
+            for (const [year, lines] of Object.entries(byYear)) {
+              target[year] = (target[year] ?? 0) + lines;
+            }
+          }
+          return { date: row.date, byGroupYear };
+        }),
+        7,
+        survivalYearScale,
+        (label, rank) => {
+          const tokeiKeys = languagesChart.seriesKeys;
+          const matched = tokeiKeys.indexOf(label);
+          const slot = matched === -1 ? tokeiKeys.length + rank : matched;
+          return (
+            categoricalColors[slot % categoricalColors.length] ?? otherColor
+          );
+        },
+      )
+    : undefined;
 
-  const survivalHasYearData = useMemo(
-    () => data.survival.some((row) => row.byContributorYear !== undefined),
-    [data.survival],
+  const survivalHasYearData = data.survival.some(
+    (row) => row.byContributorYear !== undefined,
   );
 
-  const survivalAuthorChart = useMemo((): StackedChart | undefined => {
-    if (data.survival.length === 0) {
-      return;
-    }
-    // Flat one-color-per-contributor stack when age shading is off, or when a
-    // pre-per-year dashboard.json has no byContributorYear to shade with.
-    if (!shadeContributorsByYear || !survivalHasYearData) {
-      return shapeStacked(
-        data.survival.map((row) => ({
-          date: row.date,
-          values: row.byContributor,
-        })),
-        maxContributorsInCharts,
-      );
-    }
-    return shapeYearBands(
-      data.survival.map((row) => ({
-        date: row.date,
-        byGroupYear: row.byContributorYear ?? {},
-      })),
-      maxContributorsInCharts,
-      survivalYearScale,
-    );
-  }, [
-    data.survival,
-    shadeContributorsByYear,
-    survivalHasYearData,
-    maxContributorsInCharts,
-    survivalYearScale,
-  ]);
+  // Flat one-color-per-contributor stack when age shading is off, or when a
+  // pre-per-year dashboard.json has no byContributorYear to shade with.
+  const survivalAuthorChart: StackedChart | undefined =
+    data.survival.length === 0
+      ? undefined
+      : !shadeContributorsByYear || !survivalHasYearData
+        ? shapeStacked(
+            data.survival.map((row) => ({
+              date: row.date,
+              values: row.byContributor,
+            })),
+            maxContributorsInCharts,
+          )
+        : shapeYearBands(
+            data.survival.map((row) => ({
+              date: row.date,
+              byGroupYear: row.byContributorYear ?? {},
+            })),
+            maxContributorsInCharts,
+            survivalYearScale,
+          );
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">

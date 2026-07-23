@@ -2,7 +2,7 @@ import { AxisBottom, AxisLeft } from "@visx/axis";
 import { GridRows } from "@visx/grid";
 import { Group } from "@visx/group";
 import { scaleLinear, scaleTime } from "@visx/scale";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { formatCount, formatMonth } from "../format.ts";
 import { Legend } from "./primitives.tsx";
@@ -27,38 +27,31 @@ export function DivergingBars({
   const innerWidth = Math.max(10, width - margin.left - margin.right);
   const innerHeight = height - margin.top - margin.bottom;
 
-  const dates = useMemo(
-    () => points.map((point) => new Date(`${point.month}-15`).getTime()),
-    [points],
-  );
+  const dates = points.map((point) => new Date(`${point.month}-15`).getTime());
 
   // Bars are centred on their month, so pinning the first and last months to
   // the chart edges spills half a bar off each side. Inset the range by half a
   // month slot so every bar sits inside the plot area.
   const xInset = innerWidth / Math.max(1, points.length) / 2;
 
-  const xScale = useMemo(() => {
-    let min = Math.min(...dates);
-    let max = Math.max(...dates);
-    if (min === max) {
-      min -= 14 * 86_400_000;
-      max += 14 * 86_400_000;
-    }
-    return scaleTime({
-      domain: [min, max],
-      range: [xInset, innerWidth - xInset],
-    });
-  }, [dates, innerWidth, xInset]);
+  let xMin = Math.min(...dates);
+  let xMax = Math.max(...dates);
+  if (xMin === xMax) {
+    xMin -= 14 * 86_400_000;
+    xMax += 14 * 86_400_000;
+  }
+  const xScale = scaleTime({
+    domain: [xMin, xMax],
+    range: [xInset, innerWidth - xInset],
+  });
 
-  const yScale = useMemo(() => {
-    const maxPositive = Math.max(1, ...points.map((point) => point.positive));
-    const maxNegative = Math.max(1, ...points.map((point) => point.negative));
-    return scaleLinear({
-      domain: [-maxNegative * 1.05, maxPositive * 1.05],
-      range: [innerHeight, 0],
-      nice: true,
-    });
-  }, [points, innerHeight]);
+  const maxPositive = Math.max(1, ...points.map((point) => point.positive));
+  const maxNegative = Math.max(1, ...points.map((point) => point.negative));
+  const yScale = scaleLinear({
+    domain: [-maxNegative * 1.05, maxPositive * 1.05],
+    range: [innerHeight, 0],
+    nice: true,
+  });
 
   if (points.length === 0) {
     return (
