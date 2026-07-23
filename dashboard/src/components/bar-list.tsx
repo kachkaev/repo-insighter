@@ -6,7 +6,7 @@ export function BarList({
   color = "var(--series-1)",
 }: {
   items: Array<{
-    /** Stable unique key — labels aren't unique (e.g. two contributors named "Alex"). */
+    /** Stable, unique React key; labels aren't guaranteed unique. */
     id: string;
     label: string;
     value: number;
