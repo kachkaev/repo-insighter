@@ -20,6 +20,9 @@
 *.pem
 /repo-dive-*.tgz
 
+## Local dashboard data for `dev:dashboard` (copied from some repo's catalog)
+/dashboard/public/
+
 ## Catalog (when running the tool against this repository)
 /.repo-dive/
 /.repo-insighter/

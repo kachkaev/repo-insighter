@@ -14,6 +14,7 @@ import {
   formatDate,
   formatPercent,
 } from "./format.ts";
+import { languageOfExtension } from "./languages.ts";
 
 const categoricalColors = Array.from(
   { length: 20 },
@@ -104,29 +105,32 @@ type StackedChart = {
   separateGroups?: boolean;
 };
 
-/** Separates a contributor from its year within a composite stack key. */
+/** Separates a group (contributor, language) from its year in a stack key. */
 const yearBandSeparator = "";
 
-/** Sum of a contributor's living lines across all their year bands. */
+/** Sum of a group's living lines across all its year bands. */
 function sumYears(byYear: Record<string, number>): number {
   return Object.values(byYear).reduce((total, lines) => total + lines, 0);
 }
 
 /**
- * Shapes survival-by-contributor into year-banded stacks: each contributor is
- * a contiguous run of sub-series (oldest→newest), colored as lightness bands of
- * the contributor's base color. Top contributors are kept; the rest fold into
- * "Other". The legend and tooltip collapse the bands back to one row each.
+ * Shapes a survival cross-tab into year-banded stacks: each group (contributor,
+ * language, …) is a contiguous run of sub-series (oldest→newest), colored as
+ * lightness bands of the group's base color. Top groups are kept; the rest fold
+ * into "Other". The legend and tooltip collapse the bands back to one row each.
  */
-function shapeContributorYearBands(
+function shapeYearBands(
   rows: ReadonlyArray<{
     date: string;
-    byContributorYear: Record<string, Record<string, number>>;
+    byGroupYear: Record<string, Record<string, number>>;
   }>,
   maxSeries: number,
   yearScale: YearScale,
+  /** Base color per kept group given its rank; defaults to the palette order. */
+  baseColorOf: (label: string, rank: number) => string = (_, rank) =>
+    categoricalColors[rank % categoricalColors.length] ?? otherColor,
 ): StackedChart {
-  const latest = rows.at(-1)?.byContributorYear ?? {};
+  const latest = rows.at(-1)?.byGroupYear ?? {};
   const ranked = Object.entries(latest)
     .toSorted(([, left], [, right]) => sumYears(right) - sumYears(left))
     .map(([name]) => name);
@@ -134,7 +138,7 @@ function shapeContributorYearBands(
   const hasOther =
     ranked.length > maxSeries ||
     rows.some((row) =>
-      Object.keys(row.byContributorYear).some((name) => !kept.includes(name)),
+      Object.keys(row.byGroupYear).some((name) => !kept.includes(name)),
     );
   const groups = hasOther ? [...kept, "Other"] : kept;
 
@@ -144,10 +148,7 @@ function shapeContributorYearBands(
   const tooltipGroups: Array<{ label: string; color: string; keys: string[] }> =
     [];
   for (const [index, name] of groups.entries()) {
-    const baseColor =
-      name === "Other"
-        ? otherColor
-        : (categoricalColors[index % categoricalColors.length] ?? otherColor);
+    const baseColor = name === "Other" ? otherColor : baseColorOf(name, index);
     const keys: string[] = [];
     for (const bucket of yearScale.buckets) {
       const key = `${name}${yearBandSeparator}${bucket}`;
@@ -161,7 +162,7 @@ function shapeContributorYearBands(
 
   const points = rows.map((row) => {
     const values: Record<string, number> = {};
-    for (const [name, byYear] of Object.entries(row.byContributorYear)) {
+    for (const [name, byYear] of Object.entries(row.byGroupYear)) {
       const group = kept.includes(name) ? name : "Other";
       for (const [year, lines] of Object.entries(byYear)) {
         const key = `${group}${yearBandSeparator}${yearScale.bucketOf(year)}`;
@@ -242,6 +243,28 @@ function shapeStacked(
   return { points, seriesKeys, colors };
 }
 
+function YearShadeToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="mb-3 flex w-fit items-center gap-2 text-xs text-(--text-secondary) select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => {
+          onChange(event.target.checked);
+        }}
+        className="size-3.5 accent-(--series-1)"
+      />
+      Shade by year written
+    </label>
+  );
+}
+
 /** Falls back when serving a dashboard.json written before configurable caps. */
 const defaultMaxContributorsInCharts = 10;
 
@@ -266,6 +289,7 @@ export function App({ data }: { data: DashboardData }) {
   const dependencies = data.dependencies;
   const latestDependencies = dependencies.at(-1);
   const [shadeContributorsByYear, setShadeContributorsByYear] = useState(false);
+  const [shadeLanguagesByYear, setShadeLanguagesByYear] = useState(false);
 
   // Repo inception, used to anchor charts whose series start mid-history (e.g.
   // dependencies, tracked only once a lockfile exists) to the full timeline.
@@ -385,6 +409,40 @@ export function App({ data }: { data: DashboardData }) {
     };
   }, [data.survival, survivalYearScale]);
 
+  const languagesHasYearData = useMemo(
+    () => data.survival.some((row) => row.byExtensionYear !== undefined),
+    [data.survival],
+  );
+
+  // Blame-based alternative to the tokei chart: living lines per language
+  // (approximated from file extensions), shaded by the year each line was
+  // written. Languages the tokei chart also shows keep its colors so toggling
+  // doesn't recolor the stack; extras take palette slots past the tokei ones.
+  const languagesYearChart = useMemo((): StackedChart | undefined => {
+    if (!languagesHasYearData) {
+      return;
+    }
+    const rows = data.survival.map((row) => {
+      const byGroupYear: Record<string, Record<string, number>> = {};
+      for (const [extension, byYear] of Object.entries(
+        row.byExtensionYear ?? {},
+      )) {
+        const language = languageOfExtension(extension);
+        const target = (byGroupYear[language] ??= {});
+        for (const [year, lines] of Object.entries(byYear)) {
+          target[year] = (target[year] ?? 0) + lines;
+        }
+      }
+      return { date: row.date, byGroupYear };
+    });
+    const tokeiKeys = languagesChart.seriesKeys;
+    return shapeYearBands(rows, 7, survivalYearScale, (label, rank) => {
+      const matched = tokeiKeys.indexOf(label);
+      const slot = matched === -1 ? tokeiKeys.length + rank : matched;
+      return categoricalColors[slot % categoricalColors.length] ?? otherColor;
+    });
+  }, [data.survival, languagesHasYearData, languagesChart, survivalYearScale]);
+
   const survivalHasYearData = useMemo(
     () => data.survival.some((row) => row.byContributorYear !== undefined),
     [data.survival],
@@ -405,10 +463,10 @@ export function App({ data }: { data: DashboardData }) {
         maxContributorsInCharts,
       );
     }
-    return shapeContributorYearBands(
+    return shapeYearBands(
       data.survival.map((row) => ({
         date: row.date,
-        byContributorYear: row.byContributorYear ?? {},
+        byGroupYear: row.byContributorYear ?? {},
       })),
       maxContributorsInCharts,
       survivalYearScale,
@@ -501,9 +559,26 @@ export function App({ data }: { data: DashboardData }) {
       {languagesChart.points.length > 0 && (
         <Section
           title="Lines by language"
-          subtitle="tokei snapshots at sampled commits; embedded code counts toward its host file's language"
+          subtitle={
+            shadeLanguagesByYear && languagesYearChart
+              ? "living lines via git blame at sampled commits, grouped by language (from file extensions) and shaded by the year each line was written"
+              : "tokei snapshots at sampled commits; embedded code counts toward its host file's language"
+          }
+          controls={
+            languagesYearChart ? (
+              <YearShadeToggle
+                checked={shadeLanguagesByYear}
+                onChange={setShadeLanguagesByYear}
+              />
+            ) : undefined
+          }
         >
-          <TimeSeriesChart mode="area" {...languagesChart} />
+          <TimeSeriesChart
+            mode="area"
+            {...(shadeLanguagesByYear && languagesYearChart
+              ? languagesYearChart
+              : languagesChart)}
+          />
           <DataTable
             caption="View data"
             header={["date", ...languagesChart.seriesKeys]}
@@ -597,17 +672,10 @@ export function App({ data }: { data: DashboardData }) {
           subtitle="who wrote the lines that are still alive"
           controls={
             survivalHasYearData ? (
-              <label className="mb-3 flex w-fit items-center gap-2 text-xs text-(--text-secondary) select-none">
-                <input
-                  type="checkbox"
-                  checked={shadeContributorsByYear}
-                  onChange={(event) => {
-                    setShadeContributorsByYear(event.target.checked);
-                  }}
-                  className="size-3.5 accent-(--series-1)"
-                />
-                Shade by year written
-              </label>
+              <YearShadeToggle
+                checked={shadeContributorsByYear}
+                onChange={setShadeContributorsByYear}
+              />
             ) : undefined
           }
         >

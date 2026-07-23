@@ -7,7 +7,7 @@ import { AreaStack, BarStack, LinePath } from "@visx/shape";
 import { bisector } from "d3-array";
 import { useMemo, useState } from "react";
 
-import { formatCount, formatDate } from "../format.ts";
+import { formatCount, formatDate, formatPercent } from "../format.ts";
 import { Legend } from "./primitives.tsx";
 import { useMeasuredWidth } from "./use-measure.ts";
 
@@ -78,6 +78,11 @@ export function TimeSeriesChart({
   // The instant under the cursor (continuous), not a data index — so the
   // crosshair reaches the whole domain, including stretches with no data point.
   const [hoverMs, setHoverMs] = useState<number | undefined>();
+  const [percentMode, setPercentMode] = useState(false);
+
+  // Lines aren't parts of a whole, and a single series is always 100%.
+  const supportsPercent = mode !== "line" && seriesKeys.length > 1;
+  const showPercent = supportsPercent && percentMode;
 
   const rows = useMemo(
     () =>
@@ -90,6 +95,31 @@ export function TimeSeriesChart({
       }),
     [points, seriesKeys],
   );
+
+  /** Per-row sums across every series — the denominator for shares. */
+  const totals = useMemo(
+    () =>
+      rows.map((row) =>
+        seriesKeys.reduce((sum, key) => sum + (row[key] ?? 0), 0),
+      ),
+    [rows, seriesKeys],
+  );
+
+  // What the marks are drawn from: raw values, or per-row shares in % mode.
+  // Tooltips always read the raw `rows` so both value and share can be shown.
+  const displayRows = useMemo(() => {
+    if (!showPercent) {
+      return rows;
+    }
+    return rows.map((row, index) => {
+      const total = totals[index] ?? 0;
+      const shares: Record<string, number> = { dateMs: row["dateMs"] ?? 0 };
+      for (const key of seriesKeys) {
+        shares[key] = total === 0 ? 0 : (row[key] ?? 0) / total;
+      }
+      return shares;
+    });
+  }, [rows, totals, seriesKeys, showPercent]);
 
   const innerWidth = Math.max(10, width - margin.left - margin.right);
   const innerHeight = height - margin.top - margin.bottom;
@@ -128,12 +158,14 @@ export function TimeSeriesChart({
 
   const yScale = useMemo(
     () =>
-      scaleLinear({
-        domain: [0, yMax * 1.05],
-        range: [innerHeight, 0],
-        nice: true,
-      }),
-    [yMax, innerHeight],
+      showPercent
+        ? scaleLinear({ domain: [0, 1], range: [innerHeight, 0] })
+        : scaleLinear({
+            domain: [0, yMax * 1.05],
+            range: [innerHeight, 0],
+            nice: true,
+          }),
+    [yMax, innerHeight, showPercent],
   );
 
   const bisectDate = useMemo(
@@ -174,11 +206,11 @@ export function TimeSeriesChart({
     dataMaxMs !== undefined &&
     hoverMs >= dataMinMs &&
     hoverMs <= dataMaxMs;
-  const hovered = hoverInData
-    ? rows[
-        Math.max(0, Math.min(rows.length - 1, bisectDate.center(rows, hoverMs)))
-      ]
+  const hoverIndex = hoverInData
+    ? Math.max(0, Math.min(rows.length - 1, bisectDate.center(rows, hoverMs)))
     : undefined;
+  const hovered = hoverIndex === undefined ? undefined : rows[hoverIndex];
+  const hoveredTotal = hoverIndex === undefined ? 0 : (totals[hoverIndex] ?? 0);
   // Crosshair x: the snapped point in the data range, else the raw cursor date.
   const crosshairMs = hovered?.["dateMs"] ?? hoverMs;
   const barWidth = Math.max(
@@ -194,15 +226,48 @@ export function TimeSeriesChart({
 
   return (
     <div>
-      <Legend
-        items={
-          legendItems ??
-          seriesKeys.map((key, index) => ({
-            label: key,
-            color: colors[index] ?? "var(--series-1)",
-          }))
-        }
-      />
+      <div className="flex items-start justify-between gap-4">
+        <Legend
+          items={
+            legendItems ??
+            seriesKeys.map((key, index) => ({
+              label: key,
+              color: colors[index] ?? "var(--series-1)",
+            }))
+          }
+        />
+        {supportsPercent && (
+          <div
+            role="group"
+            aria-label="Value display"
+            className="flex shrink-0 overflow-hidden rounded-md border border-(--grid-line) text-xs"
+          >
+            {(
+              [
+                { percent: false, label: "#", title: "Absolute values" },
+                { percent: true, label: "%", title: "Share of total" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                title={option.title}
+                aria-pressed={percentMode === option.percent}
+                onClick={() => {
+                  setPercentMode(option.percent);
+                }}
+                className={`px-2 py-0.5 ${
+                  percentMode === option.percent
+                    ? "bg-(--surface-2) font-medium"
+                    : "cursor-pointer text-(--text-muted) hover:text-(--text-secondary)"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div ref={containerRef} className="relative">
         <svg width={width} height={height} role="img">
           <Group left={margin.left} top={margin.top}>
@@ -214,7 +279,7 @@ export function TimeSeriesChart({
             />
             {mode === "area" && (
               <AreaStack
-                data={rows}
+                data={displayRows}
                 keys={seriesKeys}
                 x={(datum) => xScale(datum.data["dateMs"] ?? 0)}
                 y0={(datum) => yScale(datum[0])}
@@ -252,7 +317,7 @@ export function TimeSeriesChart({
             )}
             {mode === "bar" && (
               <BarStack
-                data={rows}
+                data={displayRows}
                 keys={seriesKeys}
                 x={(datum) => datum["dateMs"] ?? 0}
                 xScale={xScale}
@@ -297,14 +362,14 @@ export function TimeSeriesChart({
                 let stackBase = 0;
                 if (mode === "area") {
                   for (const priorKey of seriesKeys.slice(0, index)) {
-                    stackBase += rows[0]?.[priorKey] ?? 0;
+                    stackBase += displayRows[0]?.[priorKey] ?? 0;
                   }
                 }
-                const value = (rows[0]?.[key] ?? 0) + stackBase;
+                const value = (displayRows[0]?.[key] ?? 0) + stackBase;
                 return (
                   <circle
                     key={key}
-                    cx={xScale(rows[0]?.["dateMs"] ?? 0)}
+                    cx={xScale(displayRows[0]?.["dateMs"] ?? 0)}
                     cy={yScale(value)}
                     r={4}
                     fill={colors[index]}
@@ -330,7 +395,11 @@ export function TimeSeriesChart({
               numTicks={4}
               hideTicks
               stroke="var(--grid-line)"
-              tickFormat={(value) => formatCount(Number(value))}
+              tickFormat={(value) =>
+                showPercent
+                  ? `${Math.round(Number(value) * 100)}%`
+                  : formatCount(Number(value))
+              }
               tickLabelProps={() => ({
                 ...axisTickLabelProps,
                 dx: -4,
@@ -366,7 +435,7 @@ export function TimeSeriesChart({
             style={{
               left: Math.min(
                 Math.max(0, margin.left + xScale(crosshairMs) + 10),
-                Math.max(0, width - 180),
+                Math.max(0, width - (supportsPercent ? 220 : 180)),
               ),
             }}
           >
@@ -407,9 +476,24 @@ export function TimeSeriesChart({
                       style={{ background: entry.color }}
                     />
                     <span className="text-(--text-secondary)">{entry.key}</span>
-                    <span className="ml-auto pl-3 font-medium tabular-nums">
+                    <span
+                      className={`ml-auto pl-3 tabular-nums ${
+                        showPercent ? "text-(--text-muted)" : "font-medium"
+                      }`}
+                    >
                       {valueFormat(entry.value)}
                     </span>
+                    {supportsPercent && (
+                      <span
+                        className={`min-w-9 pl-2 text-right tabular-nums ${
+                          showPercent ? "font-medium" : "text-(--text-muted)"
+                        }`}
+                      >
+                        {hoveredTotal === 0
+                          ? "—"
+                          : formatPercent(entry.value / hoveredTotal)}
+                      </span>
+                    )}
                   </div>
                 ))}
           </div>

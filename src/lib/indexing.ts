@@ -233,9 +233,11 @@ const buildDashboardData = (
   const survival = commits
     .filter((commit) => hasMetric(commit, "survival.lines"))
     .map((commit) => {
-      // Living lines cross-tabulated by contributor and the year each line was
-      // authored — the dashboard splits each contributor's area into year bands.
+      // Living lines cross-tabulated by contributor (and by extension) and the
+      // year each line was authored — the dashboard splits each contributor's
+      // or language's area into year bands.
       const byContributorYear: Record<string, Record<string, number>> = {};
+      const byExtensionYear: Record<string, Record<string, number>> = {};
       for (const facts of commit.factsByCollector.values()) {
         for (const fact of facts) {
           if (fact.metric !== "survival.lines") {
@@ -247,6 +249,9 @@ const buildDashboardData = (
           const year = (fact.categories?.["cohort"] ?? "").slice(0, 4) || "?";
           const byYear = (byContributorYear[label] ??= {});
           byYear[year] = (byYear[year] ?? 0) + fact.value;
+          const extension = fact.categories?.["extension"] ?? "";
+          const extensionYears = (byExtensionYear[extension] ??= {});
+          extensionYears[year] = (extensionYears[year] ?? 0) + fact.value;
         }
       }
       return {
@@ -259,6 +264,7 @@ const buildDashboardData = (
         ),
         byContributorYear,
         byExtension: groupMetric(commit, "survival.lines", "extension"),
+        byExtensionYear,
       };
     });
 

@@ -10,6 +10,9 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     outDir: path.join(import.meta.dirname, "../dist/dashboard"),
+    // dashboard/public only holds local dev data — keep it out of the bundle
+    // (`files` in package.json ships dist/ verbatim).
+    copyPublicDir: false,
   },
   server: {
     // In dev, dashboard.json is served from dashboard/public — copy one there
