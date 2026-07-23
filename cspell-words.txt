@@ -25,6 +25,7 @@ Grimoire
 hotspots
 incrementality
 insighter
+inspectable
 jdrouet
 JVM
 Kachkaev
@@ -64,6 +65,7 @@ treemap
 tsc
 uncazzy
 undashed
+unscanned
 VCS
 VCSs
 visx

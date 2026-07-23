@@ -46,6 +46,9 @@ export function TimeSeriesChart({
   legendItems,
   tooltipGroups,
   separateGroups,
+  domainStartMs,
+  domainEndMs,
+  zeroLabel,
 }: {
   points: TimePoint[];
   seriesKeys: string[];
@@ -57,6 +60,22 @@ export function TimeSeriesChart({
   /** When set, the tooltip sums each group's sub-series into one row. */
   tooltipGroups?: SeriesGroup[];
   /**
+   * Extends the time axis back to this instant when it predates the first data
+   * point, so a series that starts mid-history (e.g. dependencies, tracked only
+   * once a lockfile exists) still shares the repo's full timeline. Only ever
+   * widens the domain outward — a value inside the data range is ignored.
+   */
+  domainStartMs?: number | undefined;
+  /** Like {@link domainStartMs}, extending the axis forward past the last point. */
+  domainEndMs?: number | undefined;
+  /**
+   * Tooltip text for a data point whose series all sum to zero — a value that
+   * was collected and came back empty, as opposed to a stretch with no data
+   * point at all (which always reads "No data"). Lets a chart say something
+   * concrete, e.g. "No lockfile", instead of an ambiguous run of zeros.
+   */
+  zeroLabel?: string | undefined;
+  /**
    * Area mode only: fade the strokes between a group's stacked sub-series and
    * draw a crisp line only where one `tooltipGroups` group meets the next, so
    * primary categories stay separated while their inner bands blend.
@@ -64,7 +83,9 @@ export function TimeSeriesChart({
   separateGroups?: boolean;
 }) {
   const [containerRef, width] = useMeasuredWidth<HTMLDivElement>();
-  const [hoverIndex, setHoverIndex] = useState<number | undefined>();
+  // The instant under the cursor (continuous), not a data index — so the
+  // crosshair reaches the whole domain, including stretches with no data point.
+  const [hoverMs, setHoverMs] = useState<number | undefined>();
   const [percentMode, setPercentMode] = useState(false);
 
   // Lines aren't parts of a whole, and a single series is always 100%.
@@ -115,13 +136,21 @@ export function TimeSeriesChart({
     const dates = rows.map((row) => row["dateMs"] ?? 0);
     let min = Math.min(...dates);
     let max = Math.max(...dates);
+    // Widen (never crop) the domain to any caller-supplied bounds, so a series
+    // that begins mid-history is drawn against the repo's full timeline.
+    if (domainStartMs !== undefined) {
+      min = Math.min(min, domainStartMs);
+    }
+    if (domainEndMs !== undefined) {
+      max = Math.max(max, domainEndMs);
+    }
     if (min === max) {
       // A single point collapses the time scale; pad it by two weeks.
       min -= 14 * 86_400_000;
       max += 14 * 86_400_000;
     }
     return scaleTime({ domain: [min, max], range: [0, innerWidth] });
-  }, [rows, innerWidth]);
+  }, [rows, innerWidth, domainStartMs, domainEndMs]);
 
   const yMax = useMemo(() => {
     let max = 0;
@@ -171,13 +200,27 @@ export function TimeSeriesChart({
   const handleMove = (event: React.MouseEvent<SVGRectElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - bounds.left;
-    const dateMs = xScale.invert(x).getTime();
-    const index = bisectDate.center(rows, dateMs);
-    setHoverIndex(Math.max(0, Math.min(rows.length - 1, index)));
+    setHoverMs(xScale.invert(x).getTime());
   };
 
+  // Snap to the nearest data point while the cursor is within the data's own
+  // span; outside it (e.g. before the first lockfile) there is nothing to snap
+  // to, so the crosshair follows the cursor and the tooltip reports "no data".
+  const dataMinMs = rows[0]?.["dateMs"];
+  const dataMaxMs = rows.at(-1)?.["dateMs"];
+  const hoverInData =
+    hoverMs !== undefined &&
+    dataMinMs !== undefined &&
+    dataMaxMs !== undefined &&
+    hoverMs >= dataMinMs &&
+    hoverMs <= dataMaxMs;
+  const hoverIndex = hoverInData
+    ? Math.max(0, Math.min(rows.length - 1, bisectDate.center(rows, hoverMs)))
+    : undefined;
   const hovered = hoverIndex === undefined ? undefined : rows[hoverIndex];
   const hoveredTotal = hoverIndex === undefined ? 0 : (totals[hoverIndex] ?? 0);
+  // Crosshair x: the snapped point in the data range, else the raw cursor date.
+  const crosshairMs = hovered?.["dateMs"] ?? hoverMs;
   const barWidth = Math.max(
     1,
     Math.min(24, (innerWidth / Math.max(1, rows.length)) * 0.8),
@@ -343,10 +386,10 @@ export function TimeSeriesChart({
                   />
                 );
               })}
-            {hovered !== undefined && (
+            {crosshairMs !== undefined && (
               <line
-                x1={xScale(hovered["dateMs"] ?? 0)}
-                x2={xScale(hovered["dateMs"] ?? 0)}
+                x1={xScale(crosshairMs)}
+                x2={xScale(crosshairMs)}
                 y1={0}
                 y2={innerHeight}
                 stroke="var(--text-muted)"
@@ -389,68 +432,82 @@ export function TimeSeriesChart({
               fill="transparent"
               onMouseMove={handleMove}
               onMouseLeave={() => {
-                setHoverIndex(undefined);
+                setHoverMs(undefined);
               }}
             />
           </Group>
         </svg>
-        {hovered !== undefined && (
+        {crosshairMs !== undefined && (
           <div
             className="pointer-events-none absolute top-2 z-10 rounded-md border border-(--grid-line) bg-(--surface-2) px-2.5 py-1.5 text-xs shadow-sm"
             style={{
               left: Math.min(
-                Math.max(0, margin.left + xScale(hovered["dateMs"] ?? 0) + 10),
+                Math.max(0, margin.left + xScale(crosshairMs) + 10),
                 Math.max(0, width - (supportsPercent ? 220 : 180)),
               ),
             }}
           >
-            <div className="mb-1 font-medium text-(--text-secondary)">
-              {formatDate(new Date(hovered["dateMs"] ?? 0).toISOString())}
+            <div
+              className={
+                hovered
+                  ? "mb-1 font-medium text-(--text-secondary)"
+                  : "font-medium text-(--text-secondary)"
+              }
+            >
+              {formatDate(new Date(crosshairMs).toISOString())}
             </div>
-            {(tooltipGroups
-              ? tooltipGroups.map((group) => ({
-                  key: group.label,
-                  color: group.color,
-                  value: group.keys.reduce(
-                    (sum, key) => sum + (hovered[key] ?? 0),
-                    0,
-                  ),
-                }))
-              : seriesKeys.map((key, index) => ({
-                  key,
-                  color: colors[index] ?? "var(--series-1)",
-                  value: hovered[key] ?? 0,
-                }))
-            )
-              .filter((entry) => entry.value !== 0 || seriesKeys.length <= 3)
-              .slice(0, 10)
-              .map((entry) => (
-                <div key={entry.key} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block size-2 rounded-xs"
-                    style={{ background: entry.color }}
-                  />
-                  <span className="text-(--text-secondary)">{entry.key}</span>
-                  <span
-                    className={`ml-auto pl-3 tabular-nums ${
-                      showPercent ? "text-(--text-muted)" : "font-medium"
-                    }`}
-                  >
-                    {valueFormat(entry.value)}
-                  </span>
-                  {supportsPercent && (
+            {hovered === undefined ? (
+              // Nothing was collected at this instant — a genuine gap.
+              <div className="text-(--text-muted)">No data</div>
+            ) : zeroLabel !== undefined && hoveredTotal === 0 ? (
+              // A collected point that came back empty; say so concretely.
+              <div className="text-(--text-muted)">{zeroLabel}</div>
+            ) : (
+              (tooltipGroups
+                ? tooltipGroups.map((group) => ({
+                    key: group.label,
+                    color: group.color,
+                    value: group.keys.reduce(
+                      (sum, key) => sum + (hovered[key] ?? 0),
+                      0,
+                    ),
+                  }))
+                : seriesKeys.map((key, index) => ({
+                    key,
+                    color: colors[index] ?? "var(--series-1)",
+                    value: hovered[key] ?? 0,
+                  }))
+              )
+                .filter((entry) => entry.value !== 0 || seriesKeys.length <= 3)
+                .slice(0, 10)
+                .map((entry) => (
+                  <div key={entry.key} className="flex items-center gap-1.5">
                     <span
-                      className={`min-w-9 pl-2 text-right tabular-nums ${
-                        showPercent ? "font-medium" : "text-(--text-muted)"
+                      className="inline-block size-2 rounded-xs"
+                      style={{ background: entry.color }}
+                    />
+                    <span className="text-(--text-secondary)">{entry.key}</span>
+                    <span
+                      className={`ml-auto pl-3 tabular-nums ${
+                        showPercent ? "text-(--text-muted)" : "font-medium"
                       }`}
                     >
-                      {hoveredTotal === 0
-                        ? "—"
-                        : formatPercent(entry.value / hoveredTotal)}
+                      {valueFormat(entry.value)}
                     </span>
-                  )}
-                </div>
-              ))}
+                    {supportsPercent && (
+                      <span
+                        className={`min-w-9 pl-2 text-right tabular-nums ${
+                          showPercent ? "font-medium" : "text-(--text-muted)"
+                        }`}
+                      >
+                        {hoveredTotal === 0
+                          ? "—"
+                          : formatPercent(entry.value / hoveredTotal)}
+                      </span>
+                    )}
+                  </div>
+                ))
+            )}
           </div>
         )}
       </div>
