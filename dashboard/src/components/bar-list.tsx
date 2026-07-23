@@ -5,7 +5,13 @@ export function BarList({
   items,
   color = "var(--series-1)",
 }: {
-  items: Array<{ label: string; value: number; href?: string | undefined }>;
+  items: Array<{
+    /** Stable, unique React key; labels aren't guaranteed unique. */
+    id: string;
+    label: string;
+    value: number;
+    href?: string | undefined;
+  }>;
   color?: string;
 }) {
   if (items.length === 0) {
@@ -17,7 +23,7 @@ export function BarList({
   return (
     <ul className="space-y-1.5">
       {items.map((item) => (
-        <li key={item.label} className="group flex items-center gap-3 text-sm">
+        <li key={item.id} className="group flex items-center gap-3 text-sm">
           <span
             className="w-56 truncate text-right font-mono text-xs text-(--text-secondary)"
             title={item.label}
