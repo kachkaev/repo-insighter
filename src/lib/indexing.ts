@@ -200,7 +200,14 @@ const buildDashboardData = (
     });
 
   const dependencies = commits
-    .filter((commit) => hasMetric(commit, "dependencies.resolved"))
+    .filter(
+      (commit) =>
+        // A commit the collector scanned but found no lockfile in carries only
+        // `dependencies.scanned`; it still belongs on the chart as a zero, so
+        // "collected, no dependencies" stays distinct from an unscanned gap.
+        hasMetric(commit, "dependencies.resolved") ||
+        hasMetric(commit, "dependencies.scanned"),
+    )
     .map((commit) => {
       const byKind = groupMetric(commit, "dependencies.direct", "kind");
       return {

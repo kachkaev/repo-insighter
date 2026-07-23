@@ -599,6 +599,7 @@ export function App({ data }: { data: DashboardData }) {
             mode="area"
             {...dependenciesChart}
             domainStartMs={repoStartMs}
+            zeroLabel="No lockfile"
           />
           <DataTable
             caption="View data"

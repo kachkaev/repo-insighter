@@ -48,6 +48,7 @@ export function TimeSeriesChart({
   separateGroups,
   domainStartMs,
   domainEndMs,
+  zeroLabel,
 }: {
   points: TimePoint[];
   seriesKeys: string[];
@@ -67,6 +68,13 @@ export function TimeSeriesChart({
   domainStartMs?: number | undefined;
   /** Like {@link domainStartMs}, extending the axis forward past the last point. */
   domainEndMs?: number | undefined;
+  /**
+   * Tooltip text for a data point whose series all sum to zero — a value that
+   * was collected and came back empty, as opposed to a stretch with no data
+   * point at all (which always reads "No data"). Lets a chart say something
+   * concrete, e.g. "No lockfile", instead of an ambiguous run of zeros.
+   */
+  zeroLabel?: string | undefined;
   /**
    * Area mode only: fade the strokes between a group's stacked sub-series and
    * draw a crisp line only where one `tooltipGroups` group meets the next, so
@@ -448,10 +456,13 @@ export function TimeSeriesChart({
             >
               {formatDate(new Date(crosshairMs).toISOString())}
             </div>
-            {hovered === undefined && (
+            {hovered === undefined ? (
+              // Nothing was collected at this instant — a genuine gap.
               <div className="text-(--text-muted)">No data</div>
-            )}
-            {hovered !== undefined &&
+            ) : zeroLabel !== undefined && hoveredTotal === 0 ? (
+              // A collected point that came back empty; say so concretely.
+              <div className="text-(--text-muted)">{zeroLabel}</div>
+            ) : (
               (tooltipGroups
                 ? tooltipGroups.map((group) => ({
                     key: group.label,
@@ -495,7 +506,8 @@ export function TimeSeriesChart({
                       </span>
                     )}
                   </div>
-                ))}
+                ))
+            )}
           </div>
         )}
       </div>

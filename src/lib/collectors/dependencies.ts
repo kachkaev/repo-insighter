@@ -167,7 +167,7 @@ export const dependenciesCollector: Collector = {
   name: "dependencies",
   description:
     "Dependency counts from package-manager lockfiles: total resolved packages and direct/dev dependencies (pnpm)",
-  version: "1",
+  version: "2",
   strategy: "tree",
   defaultSampling: "all",
   collect: ({ repoRoot, sha, cacheKey }) =>
@@ -207,7 +207,8 @@ export const dependenciesCollector: Collector = {
     ),
   normalize: (raw) => {
     const facts: Fact[] = [];
-    for (const lockfile of arrayAt(raw, "lockfiles")) {
+    const lockfiles = arrayAt(raw, "lockfiles");
+    for (const lockfile of lockfiles) {
       const packageManager = stringAt(lockfile, "packageManager");
       const path = stringAt(lockfile, "path");
       const categories = { packageManager, lockfile: path };
@@ -224,6 +225,12 @@ export const dependenciesCollector: Collector = {
           categories: { ...categories, kind },
         });
       }
+    }
+    // A tree with no parseable lockfile still yields a fact so the dashboard can
+    // tell "we scanned this commit and it had no dependencies" (zero) apart from
+    // "this commit was never scanned" (a gap). Without it the two look identical.
+    if (lockfiles.length === 0) {
+      facts.push({ metric: "dependencies.scanned", value: 1 });
     }
     return facts;
   },
