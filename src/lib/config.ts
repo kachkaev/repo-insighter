@@ -17,6 +17,15 @@ const configFileNames = [
 
 export const defaultMaxInCharts = 10;
 
+/**
+ * Default port for the dashboard server. 2141 spells "DIVE" in Scrabble tile
+ * values (D=2, I=1, V=4, E=1) — a nod to the project name. It sits in the
+ * registered range and below the OS ephemeral range (Linux 32768+, macOS
+ * 49152+), so it won't randomly clash with outbound-connection source ports,
+ * and IANA has no service assigned to it.
+ */
+export const defaultDashboardPort = 2141;
+
 /** Automation bots — commits that don't reflect authored work. */
 const botPattern = /\brenovate\b|\bdependabot\b|github-actions|\[bot\]/i;
 /** Known AI coding agents (mirrors the co-author heuristic in indexing.ts). */

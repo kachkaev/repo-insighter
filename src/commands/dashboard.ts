@@ -1,5 +1,6 @@
 import { Command, Flag } from "effect/unstable/cli";
 
+import { defaultDashboardPort } from "../lib/config.ts";
 import { runDashboard } from "../lib/dashboard-server.ts";
 
 export const dashboardCommand = Command.make("dashboard", {
@@ -10,7 +11,7 @@ export const dashboardCommand = Command.make("dashboard", {
     ),
   ),
   port: Flag.integer("port").pipe(
-    Flag.withDefault(4936),
+    Flag.withDefault(defaultDashboardPort),
     Flag.withDescription("Port to serve the dashboard on"),
   ),
   open: Flag.boolean("open").pipe(
