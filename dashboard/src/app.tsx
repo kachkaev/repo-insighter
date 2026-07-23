@@ -377,6 +377,33 @@ export function App({ data }: { data: DashboardData }) {
       latestDependencies.directOptional
     : 0;
 
+  // Direct dependencies declared in package.json, split by kind. Distinct from
+  // the resolved-graph chart above: this is what the project asks for, not what
+  // the lockfile pulled in. Only shown once a package.json has been seen.
+  const directDependenciesChart = {
+    points: decimate(dependencies, 400).map((row) => ({
+      dateMs: new Date(row.date).getTime(),
+      values: {
+        dependencies: row.directProd,
+        devDependencies: row.directDev,
+        optionalDependencies: row.directOptional,
+      },
+    })),
+    seriesKeys: ["dependencies", "devDependencies", "optionalDependencies"],
+    colors: ["var(--series-1)", "var(--series-3)", "var(--series-6)"],
+  };
+  const hasManifestData = dependencies.some(
+    (row) =>
+      (row.manifestCount ?? 0) > 0 ||
+      row.directProd + row.directDev + row.directOptional > 0,
+  );
+  // package.json counts arrived after direct-dependency tracking; a dashboard.json
+  // written before them carries direct counts but no manifestCount, so surface
+  // the file count only where it was actually recorded.
+  const hasManifestCounts = dependencies.some(
+    (row) => row.manifestCount !== undefined,
+  );
+
   // One age scale shared by every survival chart, so a given year reads the
   // same lightness band whether it's split by cohort or by contributor.
   const survivalYearScale = makeYearScale(
@@ -520,7 +547,13 @@ export function App({ data }: { data: DashboardData }) {
           }
           hint={
             latestDependencies
-              ? `${formatCount(directDependenciesTotal)} direct`
+              ? `${formatCount(directDependenciesTotal)} direct${
+                  hasManifestCounts
+                    ? ` · ${formatCount(
+                        latestDependencies.manifestCount ?? 0,
+                      )} package.json`
+                    : ""
+                }`
               : undefined
           }
         />
@@ -583,6 +616,37 @@ export function App({ data }: { data: DashboardData }) {
         </Section>
       )}
 
+      {hasManifestData && (
+        <Section
+          title="Direct dependencies over time"
+          subtitle="dependencies, devDependencies and optionalDependencies declared across all package.json files at each commit"
+        >
+          <TimeSeriesChart
+            mode="area"
+            {...directDependenciesChart}
+            domainStartMs={repoStartMs}
+            zeroLabel="No package.json"
+          />
+          <DataTable
+            caption="View data"
+            header={[
+              "date",
+              ...(hasManifestCounts ? ["package.json files"] : []),
+              "dependencies",
+              "devDependencies",
+              "optionalDependencies",
+            ]}
+            rows={dependencies.map((row) => [
+              formatDate(row.date),
+              ...(hasManifestCounts ? [row.manifestCount ?? 0] : []),
+              row.directProd,
+              row.directDev,
+              row.directOptional,
+            ])}
+          />
+        </Section>
+      )}
+
       {dependenciesChart.points.length > 0 && (
         <Section
           title="Dependencies over time"
@@ -596,13 +660,10 @@ export function App({ data }: { data: DashboardData }) {
           />
           <DataTable
             caption="View data"
-            header={["date", "resolved", "direct", "dev", "optional"]}
+            header={["date", "resolved"]}
             rows={dependencies.map((row) => [
               formatDate(row.date),
               row.resolved,
-              row.directProd,
-              row.directDev,
-              row.directOptional,
             ])}
           />
         </Section>

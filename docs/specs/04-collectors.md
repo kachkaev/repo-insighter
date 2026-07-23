@@ -108,7 +108,7 @@ Collectors whose per-file result depends on **content alone** therefore compute 
 A collector opts in by calling one of the shared helpers instead of walking the tree itself, passing the `cacheKey` from its collect context so cached results share the collector's invalidation:
 
 - `scanTreeWithBlobCache` — every source-like file in the tree (extension allowlist, `node_modules`/`dist`/lockfiles excluded), for a `(content) => result` scan. Used by `directives` and `todo-comments`.
-- `scanTreeFilesWithBlobCache` — files selected by path predicate, for a `(content, filePath) => result` scan. Used by `dependencies` to parse lockfiles.
+- `scanTreeFilesWithBlobCache` — files selected by path predicate, for a `(content, filePath) => result` scan. Used by `dependencies` to parse lockfiles and `package.json` manifests.
 
 Both return one result per file path in the tree; merging those into the commit's raw output stays the collector's job.
 The scan function must be pure and its result JSON-serializable — it is the value that gets cached, and it is reused for identical content under a different path.
@@ -121,7 +121,7 @@ Implemented, in `src/lib/collectors/` (strategy, then default sampling where it 
 1.  **churn** (`log`) — lines added/deleted per commit vs first parent, by file extension. Batched.
 1.  **file-types** (`tree`) — file count and bytes per extension at the commit's tree, straight from `git ls-tree -l`.
 1.  **directives** (`tree`) — ESLint suppression comments by rule (block disables counted as gray areas) and `@ts-ignore`/`@ts-expect-error`/`@ts-nocheck` counts. Blob-cached.
-1.  **dependencies** (`tree`) — total resolved packages and direct/dev dependencies from package-manager lockfiles, per package manager (pnpm so far; parser registry keyed by lockfile name generalizes to npm/yarn/bun). Blob-cached.
+1.  **dependencies** (`tree`) — total resolved packages from package-manager lockfiles, per package manager (pnpm, npm, yarn; parser registry keyed by lockfile name generalizes to bun/cargo/…), plus direct/dev/optional dependencies and manifest counts read from `package.json` files (the authoritative source for what a project declares, so accurate even where a lockfile omits it). Blob-cached. Emits `dependencies.resolved`, `dependencies.direct` and `dependencies.manifest`.
 1.  **todo-comments** (`tree`) — TODO/FIXME/HACK/XXX counts in source files. Blob-cached.
 1.  **languages** (`worktree`, `monthly`) — LOC per language, by shelling out to `tokei` on the checkout; embedded languages (code fences in Markdown, …) fold back into their parent. Missing `tokei` fails with an install hint rather than silently skipping.
 1.  **survival** (`tree`, `quarterly`) — living lines by extension, author and authoring-month cohort, via `git blame --line-porcelain` per file. The expensive one.

@@ -1,10 +1,15 @@
 /**
- * A package manager's take on one lockfile: how many packages it resolves and
- * how many direct dependencies the project(s) declare. Deliberately
- * manager-agnostic — every parser returns this same shape, so the collector,
- * the cube and the dashboard never learn about individual managers. A future
- * manager (cargo, bun, composer, …) slots in by producing this from its own
- * lockfile; nothing downstream changes.
+ * A package manager's take on one lockfile: how many packages it resolves.
+ * Deliberately manager-agnostic — every parser returns this same shape, so the
+ * collector, the cube and the dashboard never learn about individual managers.
+ * A future manager (cargo, bun, composer, …) slots in by producing this from
+ * its own lockfile; nothing downstream changes.
+ *
+ * Direct dependency counts deliberately do not live here: a lockfile is the
+ * resolved graph, and only some managers (pnpm, npm v2/v3) record which of
+ * those packages a project declared directly. `package.json` is the single
+ * source of truth for direct/dev/optional dependencies, so those are read from
+ * manifests instead (see `../package-manifest.ts`).
  */
 export type LockfileSummary = {
   /** e.g. "pnpm"; becomes the `packageManager` category on every fact. */
@@ -12,20 +17,6 @@ export type LockfileSummary = {
   readonly lockfileVersion: string;
   /** Distinct resolved packages (name + version) across the whole graph. */
   readonly resolvedCount: number;
-  /** Workspace packages declaring dependencies (1 outside a monorepo). */
-  readonly importerCount: number;
-  /**
-   * Direct dependencies declared across all importers, counted as occurrences
-   * so a monorepo's duplicates add up and distinct versions of the same
-   * package count separately (React 19 in one package + React 18 in another =
-   * two prod entries). Managers whose lockfile does not record which resolved
-   * packages are direct (npm v1, yarn) report zeros here.
-   */
-  readonly direct: {
-    readonly prod: number;
-    readonly dev: number;
-    readonly optional: number;
-  };
 };
 
 /**

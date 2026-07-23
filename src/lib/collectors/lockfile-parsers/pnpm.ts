@@ -14,8 +14,9 @@ const standardGroups = [
  * Parses a pnpm-lock.yaml (v9). The file can hold several YAML documents: pnpm
  * writes a separate one for the package manager it manages for itself
  * (`packageManagerDependencies`), which we skip so its platform binaries don't
- * masquerade as project dependencies. Totals come from the real lockfile
- * document(s): `packages` for the resolved graph, `importers` for direct deps.
+ * masquerade as project dependencies. The resolved count comes from the real
+ * lockfile document(s)' `packages` graph; the `importers` block is inspected
+ * only to tell a real lockfile from pnpm's self-management document.
  */
 export const parsePnpmLockfile = (
   content: string,
@@ -29,8 +30,6 @@ export const parsePnpmLockfile = (
 
   let lockfileVersion = "";
   let resolvedCount = 0;
-  let importerCount = 0;
-  const direct = { prod: 0, dev: 0, optional: 0 };
   let sawLockfile = false;
 
   for (const document of documents) {
@@ -77,13 +76,6 @@ export const parsePnpmLockfile = (
     // permutations) is the fallback for formats that omit `packages`.
     resolvedCount +=
       countKeys(root["packages"]) || countKeys(root["snapshots"]);
-
-    for (const importer of projectImporters) {
-      importerCount += 1;
-      direct.prod += countKeys(importer["dependencies"]);
-      direct.dev += countKeys(importer["devDependencies"]);
-      direct.optional += countKeys(importer["optionalDependencies"]);
-    }
   }
 
   if (!sawLockfile) {
@@ -93,8 +85,6 @@ export const parsePnpmLockfile = (
     packageManager: "pnpm",
     lockfileVersion,
     resolvedCount,
-    importerCount,
-    direct,
   };
 };
 

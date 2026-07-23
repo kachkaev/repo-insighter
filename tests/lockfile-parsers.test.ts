@@ -4,8 +4,9 @@ import { parseNpmLockfile } from "../src/lib/collectors/lockfile-parsers/npm.ts"
 import { parsePnpmLockfile } from "../src/lib/collectors/lockfile-parsers/pnpm.ts";
 import { parseYarnLockfile } from "../src/lib/collectors/lockfile-parsers/yarn.ts";
 
-test("parsePnpmLockfile counts resolved and direct deps, version-aware", () => {
-  // A monorepo: React 19 in one package, React 18 in another → two prod deps.
+test("parsePnpmLockfile counts resolved packages, version-aware", () => {
+  // A monorepo: React 19 in one package, React 18 in another → two resolved
+  // versions of react, counted separately.
   const summary = parsePnpmLockfile(
     [
       "lockfileVersion: '9.0'",
@@ -45,8 +46,6 @@ test("parsePnpmLockfile counts resolved and direct deps, version-aware", () => {
     packageManager: "pnpm",
     lockfileVersion: "9.0",
     resolvedCount: 4,
-    importerCount: 2,
-    direct: { prod: 2, dev: 1, optional: 1 },
   });
 });
 
@@ -90,8 +89,6 @@ test("parsePnpmLockfile skips pnpm's package-manager document", () => {
     packageManager: "pnpm",
     lockfileVersion: "9.0",
     resolvedCount: 1,
-    importerCount: 1,
-    direct: { prod: 1, dev: 0, optional: 0 },
   });
 });
 
@@ -100,8 +97,8 @@ test("parsePnpmLockfile returns undefined for non-lockfile content", () => {
 });
 
 test("parseNpmLockfile reads a v3 packages map, excluding workspace links", () => {
-  // Root + one workspace are importers; the workspace's node_modules entry is a
-  // symlink and must not be counted as a resolved package.
+  // The workspace's node_modules entry is a symlink and must not be counted as
+  // a resolved package; importer entries (root + workspace) are not resolved.
   const summary = parseNpmLockfile(
     JSON.stringify({
       name: "root",
@@ -126,13 +123,11 @@ test("parseNpmLockfile reads a v3 packages map, excluding workspace links", () =
     packageManager: "npm",
     lockfileVersion: "3",
     resolvedCount: 3,
-    importerCount: 2,
-    direct: { prod: 2, dev: 1, optional: 0 },
   });
 });
 
 test("parseNpmLockfile counts the nested tree of a legacy v1 lockfile", () => {
-  // v1 records the resolved graph but not which packages are direct.
+  // v1 records the resolved graph as a nested tree.
   const summary = parseNpmLockfile(
     JSON.stringify({
       name: "old",
@@ -152,8 +147,6 @@ test("parseNpmLockfile counts the nested tree of a legacy v1 lockfile", () => {
     packageManager: "npm",
     lockfileVersion: "1",
     resolvedCount: 3,
-    importerCount: 1,
-    direct: { prod: 0, dev: 0, optional: 0 },
   });
 });
 
@@ -189,8 +182,6 @@ test("parseYarnLockfile counts resolution blocks in a classic v1 lockfile", () =
     packageManager: "yarn",
     lockfileVersion: "1",
     resolvedCount: 3,
-    importerCount: 1,
-    direct: { prod: 0, dev: 0, optional: 0 },
   });
 });
 
@@ -222,7 +213,5 @@ test("parseYarnLockfile reads Berry YAML, excluding metadata and workspaces", ()
     packageManager: "yarn",
     lockfileVersion: "6",
     resolvedCount: 2,
-    importerCount: 1,
-    direct: { prod: 0, dev: 0, optional: 0 },
   });
 });

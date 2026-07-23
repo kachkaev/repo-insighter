@@ -206,10 +206,13 @@ const buildDashboardData = (
   const dependencies = commits
     .filter(
       (commit) =>
-        // A commit the collector scanned but found no lockfile in carries only
-        // `dependencies.scanned`; it still belongs on the chart as a zero, so
-        // "collected, no dependencies" stays distinct from an unscanned gap.
+        // A commit the collector scanned but found neither a lockfile nor a
+        // package.json in carries only `dependencies.scanned`; it still belongs
+        // on the chart as a zero, so "collected, no dependencies" stays distinct
+        // from an unscanned gap. A repo can also declare dependencies in a
+        // package.json before any lockfile exists, so manifests count too.
         hasMetric(commit, "dependencies.resolved") ||
+        hasMetric(commit, "dependencies.manifest") ||
         hasMetric(commit, "dependencies.scanned"),
     )
     .map((commit) => {
@@ -218,6 +221,7 @@ const buildDashboardData = (
         sha: commit.sha.slice(0, 10),
         date: commit.date,
         resolved: sumMetric(commit, "dependencies.resolved"),
+        manifestCount: sumMetric(commit, "dependencies.manifest"),
         directProd: byKind["prod"] ?? 0,
         directDev: byKind["dev"] ?? 0,
         directOptional: byKind["optional"] ?? 0,

@@ -52,7 +52,7 @@ Collectors so far:
 - **churn** — lines added/deleted per commit, by file extension
 - **file-types** — file count and bytes per extension at each commit's tree
 - **directives** — eslint-disable comments by rule (block disables tracked as gray areas) and `@ts-ignore`/`@ts-expect-error`/`@ts-nocheck`
-- **dependencies** — total resolved packages and direct/dev dependencies from package-manager lockfiles, per package manager (pnpm, npm and yarn — classic and berry; version-aware and monorepo-aware, extensible to more managers)
+- **dependencies** — total resolved packages from package-manager lockfiles, per package manager (pnpm, npm and yarn — classic and berry; version-aware and monorepo-aware, extensible to more managers), plus direct/dev/optional dependencies and the number of manifests read straight from `package.json` files
 - **todo-comments** — TODO/FIXME/HACK/XXX counts
 - **languages** — tokei language/LOC breakdown (sampled monthly; markdown counted whole)
 - **survival** — `git blame` line survival by extension, author and age cohort (sampled monthly)

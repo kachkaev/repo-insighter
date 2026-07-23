@@ -11,8 +11,6 @@ const versionString = (value: unknown): string =>
  * Yarn Berry (v2+) writes YAML: one top-level key per resolution (comma-joined
  * ranges share a key, so a key is one resolved version), plus a `__metadata`
  * block and the project's own `@workspace:` entries, both of which we exclude.
- * yarn.lock records no direct/dev split (that lives in package.json), so direct
- * counts read zero.
  */
 const parseBerryLockfile = (content: string): LockfileSummary | undefined => {
   let root: unknown;
@@ -32,8 +30,6 @@ const parseBerryLockfile = (content: string): LockfileSummary | undefined => {
     packageManager: "yarn",
     lockfileVersion: versionString(metadata["version"]) || "berry",
     resolvedCount,
-    importerCount: 1,
-    direct: { prod: 0, dev: 0, optional: 0 },
   };
 };
 
@@ -58,8 +54,6 @@ const parseClassicLockfile = (content: string): LockfileSummary => {
     packageManager: "yarn",
     lockfileVersion: "1",
     resolvedCount,
-    importerCount: 1,
-    direct: { prod: 0, dev: 0, optional: 0 },
   };
 };
 

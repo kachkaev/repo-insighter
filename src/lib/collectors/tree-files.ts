@@ -157,7 +157,15 @@ export const scanTreeFilesWithBlobCache = ({
       const fresh = new Map<string, string>();
       for (const [blobSha, content] of contents) {
         const result = scanContent(content, firstPathOf.get(blobSha) ?? "");
-        fresh.set(blobSha, JSON.stringify(result));
+        // `scanContent` returns undefined for a matched file it can't make sense
+        // of (e.g. a package.json that isn't a JSON object). JSON.stringify of
+        // undefined is undefined, which cannot be persisted — and would fail the
+        // whole batch write — so store "null": the miss stays cached (not
+        // re-scanned every run) and reads back as a skip downstream.
+        fresh.set(
+          blobSha,
+          result === undefined ? "null" : JSON.stringify(result),
+        );
         parsedMemo.set(memoKey(blobSha), result);
       }
       cache.setMany(collectorName, cacheKey, fresh);

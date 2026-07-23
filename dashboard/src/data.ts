@@ -47,6 +47,12 @@ type DependenciesRow = {
   date: string;
   /** Total resolved packages across all lockfiles in the tree. */
   resolved: number;
+  /**
+   * Number of package.json manifests in the tree (workspaces + root).
+   * Optional: absent in dashboard.json written before manifests were counted.
+   */
+  manifestCount?: number;
+  /** Direct dependencies declared across all package.json manifests. */
   directProd: number;
   directDev: number;
   directOptional: number;

@@ -1,4 +1,4 @@
-import { countKeys, isRecord } from "./helpers.ts";
+import { isRecord } from "./helpers.ts";
 import type { LockfileParser, LockfileSummary } from "./types.ts";
 
 const versionString = (value: unknown): string =>
@@ -24,8 +24,8 @@ const countTree = (dependencies: unknown): number => {
  * layouts exist: lockfileVersion 2/3 carry a flat `packages` map keyed by
  * install path — `""` and workspace folders are importers, `node_modules/…`
  * entries are the resolved graph (symlinked workspaces excluded). The legacy
- * v1 layout has only a nested `dependencies` tree, which records the resolved
- * graph but not which packages are direct, so direct counts read zero there.
+ * v1 layout has only a nested `dependencies` tree. Either way we count only the
+ * resolved graph; direct dependencies are read from `package.json` manifests.
  */
 export const parseNpmLockfile = (
   content: string,
@@ -41,43 +41,30 @@ export const parseNpmLockfile = (
   }
   const lockfileVersion = versionString(root["lockfileVersion"]);
 
-  // v2/v3: the `packages` map is authoritative and splits direct vs resolved.
+  // v2/v3: the flat `packages` map — `node_modules/…` entries are the resolved
+  // graph; `""` and workspace folders are importers (not counted here).
   if (isRecord(root["packages"])) {
     let resolvedCount = 0;
-    let importerCount = 0;
-    const direct = { prod: 0, dev: 0, optional: 0 };
     for (const [path, value] of Object.entries(root["packages"])) {
       const entry = isRecord(value) ? value : {};
-      if (path.includes("node_modules/")) {
-        // An installed package — unless it's a symlink to a local workspace.
-        if (entry["link"] !== true) {
-          resolvedCount += 1;
-        }
-      } else {
-        // `""` (the root) or a workspace folder: an importer that declares deps.
-        importerCount += 1;
-        direct.prod += countKeys(entry["dependencies"]);
-        direct.dev += countKeys(entry["devDependencies"]);
-        direct.optional += countKeys(entry["optionalDependencies"]);
+      // An installed package — unless it's a symlink to a local workspace.
+      if (path.includes("node_modules/") && entry["link"] !== true) {
+        resolvedCount += 1;
       }
     }
     return {
       packageManager: "npm",
       lockfileVersion: lockfileVersion || "3",
       resolvedCount,
-      importerCount,
-      direct,
     };
   }
 
-  // v1: only the nested `dependencies` tree, no direct/dev breakdown.
+  // v1: only the nested `dependencies` tree.
   if (isRecord(root["dependencies"])) {
     return {
       packageManager: "npm",
       lockfileVersion: lockfileVersion || "1",
       resolvedCount: countTree(root["dependencies"]),
-      importerCount: 1,
-      direct: { prod: 0, dev: 0, optional: 0 },
     };
   }
 
