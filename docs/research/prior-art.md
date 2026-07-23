@@ -6,7 +6,8 @@ This document surveys existing tools that analyze git repository history and ass
 
 ## Verdict
 
-**Nothing reaches even ~60% of the vision.** The landscape splits into:
+**Nothing reaches even ~60% of the vision.**
+The landscape splits into:
 
 - **git-log statistics parsers** (gitstats lineage, gilot, git-quick-stats) — never look at file contents per commit;
 - **fixed-analysis engines** (hercules, code-maat, git-of-theseus) — no arbitrary-tool execution, no queryable store;
@@ -14,13 +15,20 @@ This document surveys existing tools that analyze git repository history and ass
 - **server platforms** (Apache DevLake, GrimoireLab, commercial SEI SaaS) — neither local-first nor npx-runnable;
 - **tiny "run cloc/tokei per commit and plot it" scripts** — all dormant, none extensible.
 
-The two closest architectural ancestors (hercules, MergeStat) are both unmaintained. No Effect-based tool in this space exists at all. The niche is open.
+The two closest architectural ancestors (hercules, MergeStat) are both unmaintained.
+No Effect-based tool in this space exists at all.
+The niche is open.
 
 ## Name collision on npm
 
-`repo-insights` was claimed on npm on 2026-02-22 by [uncazzy/repo-insights](https://github.com/uncazzy/repo-insights) — "zero-config git repository analytics" producing a self-contained HTML report via `npx repo-insights`. It is a real (not squatted) but dormant tool: one 0.1.0 release, ~1 download/week, ~1,100 lines of plain JS parsing `git log` metadata. No per-commit tool execution, no store, no plugins (match score vs our vision: ~30/100).
+`repo-insights` was claimed on npm on 2026-02-22 by [uncazzy/repo-insights](https://github.com/uncazzy/repo-insights) — "zero-config git repository analytics" producing a self-contained HTML report via `npx repo-insights`.
+It is a real (not squatted) but dormant tool: one 0.1.0 release, ~1 download/week, ~1,100 lines of plain JS parsing `git log` metadata.
+No per-commit tool execution, no store, no plugins (match score vs our vision: ~30/100).
 
-Free alternatives checked the same day: `repo-insight`, `repo-metrics`, `repoinsights` (all 404), or a scoped `@kachkaev/repo-insights`. `git-insights` and `repo-stats` are taken by abandoned placeholders. npm's dispute policy generally will not transfer a name from an actively published, on-topic package. See [open questions](../specs/06-open-questions.md).
+Free alternatives checked the same day: `repo-insight`, `repo-metrics`, `repoinsights` (all 404), or a scoped `@kachkaev/repo-insights`.
+`git-insights` and `repo-stats` are taken by abandoned placeholders.
+npm's dispute policy generally will not transfer a name from an actively published, on-topic package.
+See [open questions](../specs/06-open-questions.md).
 
 ## Closest matches (ranked)
 

@@ -2,7 +2,9 @@
 
 Known-important items not yet done, in rough priority order.
 
-Items here are changes worth making; [specs/06-open-questions.md](../specs/06-open-questions.md) holds the questions whose answers are not settled, and an item tends to move from there to here once one is. The split is a soft one — several entries below still name two possible approaches. [config-file.md](config-file.md) is a shipped design note kept for its reasoning rather than as a plan; the behavior it describes is documented in [specs/07-config.md](../specs/07-config.md).
+Items here are changes worth making; [specs/06-open-questions.md](../specs/06-open-questions.md) holds the questions whose answers are not settled, and an item tends to move from there to here once one is.
+The split is a soft one — several entries below still name two possible approaches.
+[config-file.md](config-file.md) is a shipped design note kept for its reasoning rather than as a plan; the behavior it describes is documented in [specs/07-config.md](../specs/07-config.md).
 
 ## Product
 

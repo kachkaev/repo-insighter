@@ -2,11 +2,13 @@
 
 _Implemented. See [docs/specs/07-config.md](../specs/07-config.md) for the shipped behavior; this file is kept as the original design note._
 
-Let users drop a `repo-dive.config.ts` at the root of the **analyzed** repository (knip-style) to alter how the tool works. Everything must keep working with zero config.
+Let users drop a `repo-dive.config.ts` at the root of the **analyzed** repository (knip-style) to alter how the tool works.
+Everything must keep working with zero config.
 
 ## Feature 1: author aliases (deduplication)
 
-People appear under multiple identities (work + personal email, GitHub noreply, name variants). The config declares alias groups; the **index step** (not scan — raw catalog stays raw) merges them before building the cube and dashboard data.
+People appear under multiple identities (work + personal email, GitHub noreply, name variants).
+The config declares alias groups; the **index step** (not scan — raw catalog stays raw) merges them before building the cube and dashboard data.
 
 ```ts
 import { defineConfig } from "repo-dive/config";
@@ -31,7 +33,9 @@ Merging applies to: `commits.count`/churn attribution, the authors table, surviv
 
 ## Feature 2: author cap in charts
 
-The dashboard currently folds authors into "Other" beyond hard-coded caps (6 in the survival-by-author stacked area, 10 in the authors bar list). Raise the default to **10** for stacked areas (20 for bar lists) and make it configurable via `authors.maxInCharts`. Note the categorical palette has 8 slots — beyond 8, series need the sequential-ramp fallback or "Other" folding; check the data-viz guidance before exceeding 8 in one stack.
+The dashboard currently folds authors into "Other" beyond hard-coded caps (6 in the survival-by-author stacked area, 10 in the authors bar list).
+Raise the default to **10** for stacked areas (20 for bar lists) and make it configurable via `authors.maxInCharts`.
+Note the categorical palette has 8 slots — beyond 8, series need the sequential-ramp fallback or "Other" folding; check the data-viz guidance before exceeding 8 in one stack.
 
 ## Implementation notes
 

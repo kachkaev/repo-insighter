@@ -40,7 +40,9 @@ A dot-folder at the root of the analyzed repository:
 
 ## Blob cache
 
-`cache/blob-cache.sqlite` holds **per-blob collector results, content-addressed by the blob's git object id**. It exists because a file's content usually outlives the commits it appears in: a source file untouched for two years has the same blob sha in every commit of that range, so anything derived from its bytes alone is worth computing once rather than once per commit. It is an accelerator, not data — deleting it at any time costs only recomputation.
+`cache/blob-cache.sqlite` holds **per-blob collector results, content-addressed by the blob's git object id**.
+It exists because a file's content usually outlives the commits it appears in: a source file untouched for two years has the same blob sha in every commit of that range, so anything derived from its bytes alone is worth computing once rather than once per commit.
+It is an accelerator, not data — deleting it at any time costs only recomputation.
 
 Schema (one table, WAL journal mode):
 

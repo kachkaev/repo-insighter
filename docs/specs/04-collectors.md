@@ -44,7 +44,8 @@ type Fact = {
 
 Raw output is typed `unknown` on purpose: it is written to the catalog as JSON and read back from there, so `normalize` re-parses rather than trusting an in-memory shape.
 
-The `collect`/`normalize` split mirrors the catalog's raw-before-derived principle: `collect` is expensive and runs once per (commit, cache fingerprint); `normalize` is cheap, pure and re-runnable whenever indexing logic improves. Because `normalize` re-runs on every `index`, config that only affects normalization must **not** feed `cacheConfig` — only config that changes the collected output belongs in the fingerprint.
+The `collect`/`normalize` split mirrors the catalog's raw-before-derived principle: `collect` is expensive and runs once per (commit, cache fingerprint); `normalize` is cheap, pure and re-runnable whenever indexing logic improves.
+Because `normalize` re-runs on every `index`, config that only affects normalization must **not** feed `cacheConfig` — only config that changes the collected output belongs in the fingerprint.
 
 ## Collection strategies
 
@@ -56,7 +57,9 @@ Ordered by cost; the strategy tells the runner what context a collector needs:
 
 ## Sampling
 
-Every-commit collection is the semantic default, but expensive collectors need a budget. Each collector declares a `defaultSampling`; `scan --sample POLICY` overrides it for every collector in the run. Policies:
+Every-commit collection is the semantic default, but expensive collectors need a budget.
+Each collector declares a `defaultSampling`; `scan --sample POLICY` overrides it for every collector in the run.
+Policies:
 
 - `all` — every commit (the default for the cheap `log` and `tree` collectors)
 - `weekly` / `monthly` / `quarterly` — the newest commit of each period, so HEAD is always sampled (`languages` defaults to `monthly`, `survival` to `quarterly`)
@@ -67,17 +70,25 @@ Period buckets are computed from the author date in UTC (ISO weeks for `weekly`)
 
 Which commits a collector was actually run on stays visible in the cube (facts carry the collector that produced them), so charts can interpolate honestly rather than pretending to be continuous.
 
-`tree` and `worktree` collectors sample the **first-parent chain only**. Their output describes the state of the tree, and only first-parent commits are states the repository actually passed through: a commit on a merged side branch — or one that arrived with a foreign history absorbed by an unrelated-histories merge — carries a tree that was never HEAD, so sampling it puts a cliff into the timeline. `log` collectors see every commit, since a commit's own authorship and diff are facts wherever it sits in the graph.
+`tree` and `worktree` collectors sample the **first-parent chain only**.
+Their output describes the state of the tree, and only first-parent commits are states the repository actually passed through: a commit on a merged side branch — or one that arrived with a foreign history absorbed by an unrelated-histories merge — carries a tree that was never HEAD, so sampling it puts a cliff into the timeline.
+`log` collectors see every commit, since a commit's own authorship and diff are facts wherever it sits in the graph.
 
 ## Incrementality
 
-The unit of work is **(commit, collector, cache fingerprint)** — the fingerprint being a short hash of the collector version and the config it depends on. Before running, the scanner diffs the plan against `collector.json` sidecars already in the catalog and only schedules the gap. Interrupting a scan loses at most the in-flight commits; re-running continues where it stopped. Effect's structured concurrency handles parallelism (several collectors per commit, several commits in flight) with clean cancellation.
+The unit of work is **(commit, collector, cache fingerprint)** — the fingerprint being a short hash of the collector version and the config it depends on.
+Before running, the scanner diffs the plan against `collector.json` sidecars already in the catalog and only schedules the gap.
+Interrupting a scan loses at most the in-flight commits; re-running continues where it stopped.
+Effect's structured concurrency handles parallelism (several collectors per commit, several commits in flight) with clean cancellation.
 
 ## Batch collection
 
-`collect` is defined per commit, which for a `log` collector means one `git show` subprocess per commit — on a 30k-commit repository, the difference between minutes and hours. A collector that can answer for many commits in a single pass therefore also implements the optional **`collectBatch`**: it receives the repo root and the set of shas still to do, and returns a map from sha to raw output.
+`collect` is defined per commit, which for a `log` collector means one `git show` subprocess per commit — on a 30k-commit repository, the difference between minutes and hours.
+A collector that can answer for many commits in a single pass therefore also implements the optional **`collectBatch`**: it receives the repo root and the set of shas still to do, and returns a map from sha to raw output.
 
-`scan` runs a batch phase before the per-commit walk. For each collector with a `collectBatch`, it works out which of its planned shas lack a current sidecar, hands that set over, and writes every returned output through the same catalog path a per-commit run would use — same `output.json`, same `collector.json` fingerprint. Shas the batch covered are then removed from the per-commit walk.
+`scan` runs a batch phase before the per-commit walk.
+For each collector with a `collectBatch`, it works out which of its planned shas lack a current sidecar, hands that set over, and writes every returned output through the same catalog path a per-commit run would use — same `output.json`, same `collector.json` fingerprint.
+Shas the batch covered are then removed from the per-commit walk.
 
 The contract a collector must honor:
 
@@ -91,14 +102,16 @@ Implemented by `commit-meta` and `churn`: both replace one `git show` per commit
 
 ## Content caching
 
-Tree collectors face the mirror-image problem: successive commits share almost their whole tree, so scanning every file of every commit re-reads bytes that have not changed. Collectors whose per-file result depends on **content alone** therefore compute per blob and cache by blob sha, in `.repo-dive/cache/blob-cache.sqlite` — see [catalog](03-catalog.md#blob-cache) for the store itself.
+Tree collectors face the mirror-image problem: successive commits share almost their whole tree, so scanning every file of every commit re-reads bytes that have not changed.
+Collectors whose per-file result depends on **content alone** therefore compute per blob and cache by blob sha, in `.repo-dive/cache/blob-cache.sqlite` — see [catalog](03-catalog.md#blob-cache) for the store itself.
 
 A collector opts in by calling one of the shared helpers instead of walking the tree itself, passing the `cacheKey` from its collect context so cached results share the collector's invalidation:
 
 - `scanTreeWithBlobCache` — every source-like file in the tree (extension allowlist, `node_modules`/`dist`/lockfiles excluded), for a `(content) => result` scan. Used by `directives` and `todo-comments`.
 - `scanTreeFilesWithBlobCache` — files selected by path predicate, for a `(content, filePath) => result` scan. Used by `dependencies` to parse lockfiles.
 
-Both return one result per file path in the tree; merging those into the commit's raw output stays the collector's job. The scan function must be pure and its result JSON-serializable — it is the value that gets cached, and it is reused for identical content under a different path.
+Both return one result per file path in the tree; merging those into the commit's raw output stays the collector's job.
+The scan function must be pure and its result JSON-serializable — it is the value that gets cached, and it is reused for identical content under a different path.
 
 ## Built-in roster
 
