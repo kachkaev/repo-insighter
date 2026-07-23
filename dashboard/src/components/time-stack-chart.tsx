@@ -33,6 +33,154 @@ const axisTickLabelProps = {
   fontFamily: "inherit",
 } as const;
 
+type TimeScale = ReturnType<typeof scaleTime<number>>;
+type LinearScale = ReturnType<typeof scaleLinear<number>>;
+
+/**
+ * The static marks — grid, stacked areas/bars/lines and single-point dots. Split
+ * out as its own component so React Compiler memoizes it: none of its props
+ * depend on the cursor, so moving the mouse (which only updates the crosshair and
+ * tooltip in the parent) reuses this element and React skips re-rendering the
+ * shapes entirely. Keep it that way — see the editing-react skill.
+ */
+function ChartMarks({
+  mode,
+  displayRows,
+  rows,
+  seriesKeys,
+  colors,
+  xScale,
+  yScale,
+  innerWidth,
+  separateGroups,
+  groupBoundaryKeys,
+  barWidth,
+}: {
+  mode: "area" | "bar" | "line";
+  displayRows: Array<Record<string, number>>;
+  rows: Array<Record<string, number>>;
+  seriesKeys: string[];
+  colors: string[];
+  xScale: TimeScale;
+  yScale: LinearScale;
+  innerWidth: number;
+  separateGroups: boolean | undefined;
+  groupBoundaryKeys: Set<string>;
+  barWidth: number;
+}) {
+  return (
+    <>
+      <GridRows
+        scale={yScale}
+        width={innerWidth}
+        numTicks={4}
+        stroke="var(--grid-line)"
+      />
+      {mode === "area" && (
+        <AreaStack
+          data={displayRows}
+          keys={seriesKeys}
+          x={(datum) => xScale(datum.data["dateMs"] ?? 0)}
+          y0={(datum) => yScale(datum[0])}
+          y1={(datum) => yScale(datum[1])}
+          curve={curveMonotoneX}
+        >
+          {({ stacks, path }) => (
+            <>
+              {stacks.map((stack) => (
+                <path
+                  key={stack.key}
+                  d={path(stack) ?? ""}
+                  fill={colors[seriesKeys.indexOf(stack.key)]}
+                  stroke="var(--surface-1)"
+                  strokeWidth={separateGroups ? 0.5 : 1}
+                  strokeOpacity={separateGroups ? 0.35 : 1}
+                />
+              ))}
+              {stacks
+                .filter((stack) => groupBoundaryKeys.has(stack.key))
+                .map((stack) => (
+                  <LinePath
+                    key={`boundary-${stack.key}`}
+                    data={stack}
+                    x={(point) => xScale(point.data["dateMs"] ?? 0)}
+                    y={(point) => yScale(point[1])}
+                    stroke="var(--surface-1)"
+                    strokeWidth={1}
+                    curve={curveMonotoneX}
+                  />
+                ))}
+            </>
+          )}
+        </AreaStack>
+      )}
+      {mode === "bar" && (
+        <BarStack
+          data={displayRows}
+          keys={seriesKeys}
+          x={(datum) => datum["dateMs"] ?? 0}
+          xScale={xScale}
+          yScale={yScale}
+          color={(key) => colors[seriesKeys.indexOf(key)] ?? ""}
+        >
+          {(barStacks) =>
+            barStacks.map((barStack) =>
+              barStack.bars.map((bar) => (
+                <rect
+                  key={`${barStack.index}-${bar.index}`}
+                  x={bar.x + bar.width / 2 - barWidth / 2}
+                  y={bar.y}
+                  width={barWidth}
+                  height={Math.max(0, bar.height)}
+                  fill={bar.color}
+                  stroke="var(--surface-1)"
+                  strokeWidth={1}
+                  rx={1}
+                />
+              )),
+            )
+          }
+        </BarStack>
+      )}
+      {mode === "line" &&
+        seriesKeys.map((key, index) => (
+          <LinePath
+            key={key}
+            data={rows}
+            x={(datum) => xScale(datum["dateMs"] ?? 0)}
+            y={(datum) => yScale(datum[key] ?? 0)}
+            stroke={colors[index]}
+            strokeWidth={2}
+            curve={curveMonotoneX}
+          />
+        ))}
+      {/* A single snapshot can't draw an area/line — show dot markers. */}
+      {rows.length === 1 &&
+        mode !== "bar" &&
+        seriesKeys.map((key, index) => {
+          let stackBase = 0;
+          if (mode === "area") {
+            for (const priorKey of seriesKeys.slice(0, index)) {
+              stackBase += displayRows[0]?.[priorKey] ?? 0;
+            }
+          }
+          const value = (displayRows[0]?.[key] ?? 0) + stackBase;
+          return (
+            <circle
+              key={key}
+              cx={xScale(displayRows[0]?.["dateMs"] ?? 0)}
+              cy={yScale(value)}
+              r={4}
+              fill={colors[index]}
+              stroke="var(--surface-1)"
+              strokeWidth={1}
+            />
+          );
+        })}
+    </>
+  );
+}
+
 /**
  * Stacked series over time — areas for dense series, bars for monthly buckets,
  * lines for non-stacked comparison. Crosshair tooltip on hover.
@@ -270,113 +418,19 @@ export function TimeSeriesChart({
       <div ref={containerRef} className="relative">
         <svg width={width} height={height} role="img">
           <Group left={margin.left} top={margin.top}>
-            <GridRows
-              scale={yScale}
-              width={innerWidth}
-              numTicks={4}
-              stroke="var(--grid-line)"
+            <ChartMarks
+              mode={mode}
+              displayRows={displayRows}
+              rows={rows}
+              seriesKeys={seriesKeys}
+              colors={colors}
+              xScale={xScale}
+              yScale={yScale}
+              innerWidth={innerWidth}
+              separateGroups={separateGroups}
+              groupBoundaryKeys={groupBoundaryKeys}
+              barWidth={barWidth}
             />
-            {mode === "area" && (
-              <AreaStack
-                data={displayRows}
-                keys={seriesKeys}
-                x={(datum) => xScale(datum.data["dateMs"] ?? 0)}
-                y0={(datum) => yScale(datum[0])}
-                y1={(datum) => yScale(datum[1])}
-                curve={curveMonotoneX}
-              >
-                {({ stacks, path }) => (
-                  <>
-                    {stacks.map((stack) => (
-                      <path
-                        key={stack.key}
-                        d={path(stack) ?? ""}
-                        fill={colors[seriesKeys.indexOf(stack.key)]}
-                        stroke="var(--surface-1)"
-                        strokeWidth={separateGroups ? 0.5 : 1}
-                        strokeOpacity={separateGroups ? 0.35 : 1}
-                      />
-                    ))}
-                    {stacks
-                      .filter((stack) => groupBoundaryKeys.has(stack.key))
-                      .map((stack) => (
-                        <LinePath
-                          key={`boundary-${stack.key}`}
-                          data={stack}
-                          x={(point) => xScale(point.data["dateMs"] ?? 0)}
-                          y={(point) => yScale(point[1])}
-                          stroke="var(--surface-1)"
-                          strokeWidth={1}
-                          curve={curveMonotoneX}
-                        />
-                      ))}
-                  </>
-                )}
-              </AreaStack>
-            )}
-            {mode === "bar" && (
-              <BarStack
-                data={displayRows}
-                keys={seriesKeys}
-                x={(datum) => datum["dateMs"] ?? 0}
-                xScale={xScale}
-                yScale={yScale}
-                color={(key) => colors[seriesKeys.indexOf(key)] ?? ""}
-              >
-                {(barStacks) =>
-                  barStacks.map((barStack) =>
-                    barStack.bars.map((bar) => (
-                      <rect
-                        key={`${barStack.index}-${bar.index}`}
-                        x={bar.x + bar.width / 2 - barWidth / 2}
-                        y={bar.y}
-                        width={barWidth}
-                        height={Math.max(0, bar.height)}
-                        fill={bar.color}
-                        stroke="var(--surface-1)"
-                        strokeWidth={1}
-                        rx={1}
-                      />
-                    )),
-                  )
-                }
-              </BarStack>
-            )}
-            {mode === "line" &&
-              seriesKeys.map((key, index) => (
-                <LinePath
-                  key={key}
-                  data={rows}
-                  x={(datum) => xScale(datum["dateMs"] ?? 0)}
-                  y={(datum) => yScale(datum[key] ?? 0)}
-                  stroke={colors[index]}
-                  strokeWidth={2}
-                  curve={curveMonotoneX}
-                />
-              ))}
-            {/* A single snapshot can't draw an area/line — show dot markers. */}
-            {rows.length === 1 &&
-              mode !== "bar" &&
-              seriesKeys.map((key, index) => {
-                let stackBase = 0;
-                if (mode === "area") {
-                  for (const priorKey of seriesKeys.slice(0, index)) {
-                    stackBase += displayRows[0]?.[priorKey] ?? 0;
-                  }
-                }
-                const value = (displayRows[0]?.[key] ?? 0) + stackBase;
-                return (
-                  <circle
-                    key={key}
-                    cx={xScale(displayRows[0]?.["dateMs"] ?? 0)}
-                    cy={yScale(value)}
-                    r={4}
-                    fill={colors[index]}
-                    stroke="var(--surface-1)"
-                    strokeWidth={1}
-                  />
-                );
-              })}
             {crosshairMs !== undefined && (
               <line
                 x1={xScale(crosshairMs)}
