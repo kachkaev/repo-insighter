@@ -12,6 +12,7 @@ import { queryCommand } from "./commands/query.ts";
 import { reportCommand } from "./commands/report.ts";
 import { scanCommand } from "./commands/scan.ts";
 import { statusCommand } from "./commands/status.ts";
+import { defaultDashboardPort } from "./lib/config.ts";
 import { runDashboard } from "./lib/dashboard-server.ts";
 import { runIndex } from "./lib/indexing.ts";
 import { runScan } from "./lib/scan.ts";
@@ -24,7 +25,7 @@ const cli = Command.make("repo-dive", {
     ),
   ),
   port: Flag.integer("port").pipe(
-    Flag.withDefault(4936),
+    Flag.withDefault(defaultDashboardPort),
     Flag.withDescription("Port to serve the dashboard on"),
   ),
   noOpen: Flag.boolean("no-open").pipe(
