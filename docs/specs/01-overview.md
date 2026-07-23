@@ -2,7 +2,8 @@
 
 ## Vision
 
-A repository's history hides insights that are hard to see from HEAD: how languages rise and fall, who owns what and when that changed, how lint debt accumulates, where churn concentrates. repo-dive extracts those insights from any local git repository and turns them into material for exploration, charts and presentations:
+A repository's history hides insights that are hard to see from HEAD: how languages rise and fall, who owns what and when that changed, how lint debt accumulates, where churn concentrates.
+repo-dive extracts those insights from any local git repository and turns them into material for exploration, charts and presentations:
 
 ```sh
 npx repo-dive scan # eventually: one command from zero to explorable insights

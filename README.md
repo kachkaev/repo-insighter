@@ -2,7 +2,9 @@
 
 Dive into a git repository's history: per-commit snapshots, an indexed metrics catalog and an interactive dashboard.
 
-> **Still 0.x.** The pipeline works end to end and has been run against repositories with tens of thousands of commits, but interfaces, the catalog format and the collector roster still move between minor versions — pin the version if you script against it. Renamed from `repo-insighter` in 0.4.0.
+> **Still 0.x.**
+> The pipeline works end to end and has been run against repositories with tens of thousands of commits, but interfaces, the catalog format and the collector roster still move between minor versions — pin the version if you script against it.
+> Renamed from `repo-insighter` in 0.4.0.
 
 ## What it does
 
@@ -41,7 +43,10 @@ npx repo-dive mcp # serve the cube to AI agents (Model Context Protocol)
 npx repo-dive gc  # clean up the catalog interactively
 ```
 
-`scan` walks the repository's history and runs collectors against every commit (or a sample, per collector), writing raw snapshots into a `.repo-dive/` catalog inside the analyzed repo. It is resumable: re-running skips everything already collected, and bumping a collector's version invalidates only that collector's outputs. Checkout-based collectors use temporary detached worktrees — the analyzed repo's working tree is never touched. Collectors so far:
+`scan` walks the repository's history and runs collectors against every commit (or a sample, per collector), writing raw snapshots into a `.repo-dive/` catalog inside the analyzed repo.
+It is resumable: re-running skips everything already collected, and bumping a collector's version invalidates only that collector's outputs.
+Checkout-based collectors use temporary detached worktrees — the analyzed repo's working tree is never touched.
+Collectors so far:
 
 - **commit-meta** — identities, dates, parents, subject and trailers (incl. AI co-authors)
 - **churn** — lines added/deleted per commit, by file extension
@@ -56,7 +61,8 @@ npx repo-dive gc  # clean up the catalog interactively
 
 ## Configuration
 
-Everything works with zero config. To refine it, drop a `repo-dive.config.ts` at the root of the repository you analyze (`.mjs`/`.js` also work):
+Everything works with zero config.
+To refine it, drop a `repo-dive.config.ts` at the root of the repository you analyze (`.mjs`/`.js` also work):
 
 ```ts
 import { defineConfig } from "repo-dive/config";
@@ -79,16 +85,20 @@ export default defineConfig({
 });
 ```
 
-`contributors.aliases` merges the multiple identities one person commits under (work + personal email, GitHub noreply, name variants) so attribution, the contributors table and code-survival-by-contributor count them once; a group can also carry a `displayName`, a profile `url` and a `kind` (`human`/`bot`/`ai`, otherwise auto-derived — the dashboard badges bots and AI agents and lists them apart from humans). The config is read by `index`. See [docs/specs/07-config.md](docs/specs/07-config.md) for details.
+`contributors.aliases` merges the multiple identities one person commits under (work + personal email, GitHub noreply, name variants) so attribution, the contributors table and code-survival-by-contributor count them once; a group can also carry a `displayName`, a profile `url` and a `kind` (`human`/`bot`/`ai`, otherwise auto-derived — the dashboard badges bots and AI agents and lists them apart from humans).
+The config is read by `index`.
+See [docs/specs/07-config.md](docs/specs/07-config.md) for details.
 
 ## AI agents (MCP)
 
-`repo-dive mcp` serves the metrics cube over the Model Context Protocol on stdio, so an agent can explore a repository's history by asking SQL questions. Two tools:
+`repo-dive mcp` serves the metrics cube over the Model Context Protocol on stdio, so an agent can explore a repository's history by asking SQL questions.
+Two tools:
 
 - **`schema`** — tables, available metrics with row counts, sample category keys per metric and the commit range; worth calling before writing queries.
 - **`query`** — one read-only statement (`SELECT`/`WITH`/`EXPLAIN`) against the cube, returning `{ columns, rows, truncated }` (up to 200 rows).
 
-Run `scan` and `index` first: the server exits immediately if there is no cube at `.repo-dive/index/metrics.sqlite`. The database is opened read-only, so nothing an agent asks can change the catalog.
+Run `scan` and `index` first: the server exits immediately if there is no cube at `.repo-dive/index/metrics.sqlite`.
+The database is opened read-only, so nothing an agent asks can change the catalog.
 
 For [Claude Code](https://code.claude.com/docs/en/mcp), run this inside the repository you want to ask questions about:
 

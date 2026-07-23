@@ -20,7 +20,8 @@ Examples of facts:
 
 ## Storage: SQLite (confirmed as the first backend)
 
-Backed by `node:sqlite`'s `DatabaseSync` from the standard library — no native dependency, which keeps `npx` startup clean. Schema as built by `index` (v0):
+Backed by `node:sqlite`'s `DatabaseSync` from the standard library — no native dependency, which keeps `npx` startup clean.
+Schema as built by `index` (v0):
 
 ```sql
 CREATE TABLE commits (

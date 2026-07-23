@@ -1,6 +1,8 @@
 # Specs
 
-Design documents for repo-dive. Everything here is a **working draft**: the project is at the specification stage and these documents are the primary deliverable right now. Confirmed decisions are marked as such; everything else is a best guess open for debate.
+Design documents for repo-dive.
+Everything here is a **working draft**: the project is at the specification stage and these documents are the primary deliverable right now.
+Confirmed decisions are marked as such; everything else is a best guess open for debate.
 
 1.  [Overview](01-overview.md) — vision, principles, non-goals
 1.  [CLI surface](02-cli.md) — commands and user workflow
