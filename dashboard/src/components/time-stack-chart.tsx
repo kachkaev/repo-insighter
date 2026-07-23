@@ -132,6 +132,16 @@ export function TimeSeriesChart({
   const innerWidth = Math.max(10, width - margin.left - margin.right);
   const innerHeight = height - margin.top - margin.bottom;
 
+  // Bars are centred on their data point, so with points pinned to the chart
+  // edges the first and last bars spill out by half a bar. Inset the range by
+  // half a bucket slot so every bar sits inside the plot area. Areas and lines
+  // want their points on the edges, so they keep the full range. Any marks that
+  // overlay a bar chart (e.g. a trend line) share this scale and stay aligned.
+  const xInset = useMemo(
+    () => (mode === "bar" ? innerWidth / Math.max(1, rows.length) / 2 : 0),
+    [mode, innerWidth, rows.length],
+  );
+
   const xScale = useMemo(() => {
     const dates = rows.map((row) => row["dateMs"] ?? 0);
     let min = Math.min(...dates);
@@ -149,8 +159,11 @@ export function TimeSeriesChart({
       min -= 14 * 86_400_000;
       max += 14 * 86_400_000;
     }
-    return scaleTime({ domain: [min, max], range: [0, innerWidth] });
-  }, [rows, innerWidth, domainStartMs, domainEndMs]);
+    return scaleTime({
+      domain: [min, max],
+      range: [xInset, innerWidth - xInset],
+    });
+  }, [rows, innerWidth, xInset, domainStartMs, domainEndMs]);
 
   const yMax = useMemo(() => {
     let max = 0;

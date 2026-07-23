@@ -32,6 +32,11 @@ export function DivergingBars({
     [points],
   );
 
+  // Bars are centred on their month, so pinning the first and last months to
+  // the chart edges spills half a bar off each side. Inset the range by half a
+  // month slot so every bar sits inside the plot area.
+  const xInset = innerWidth / Math.max(1, points.length) / 2;
+
   const xScale = useMemo(() => {
     let min = Math.min(...dates);
     let max = Math.max(...dates);
@@ -39,8 +44,11 @@ export function DivergingBars({
       min -= 14 * 86_400_000;
       max += 14 * 86_400_000;
     }
-    return scaleTime({ domain: [min, max], range: [0, innerWidth] });
-  }, [dates, innerWidth]);
+    return scaleTime({
+      domain: [min, max],
+      range: [xInset, innerWidth - xInset],
+    });
+  }, [dates, innerWidth, xInset]);
 
   const yScale = useMemo(() => {
     const maxPositive = Math.max(1, ...points.map((point) => point.positive));
