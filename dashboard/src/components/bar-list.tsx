@@ -16,8 +16,11 @@ export function BarList({
 
   return (
     <ul className="space-y-1.5">
-      {items.map((item) => (
-        <li key={item.label} className="group flex items-center gap-3 text-sm">
+      {items.map((item, index) => (
+        <li
+          key={`${index}-${item.label}`}
+          className="group flex items-center gap-3 text-sm"
+        >
           <span
             className="w-56 truncate text-right font-mono text-xs text-(--text-secondary)"
             title={item.label}
