@@ -450,7 +450,10 @@ export function App({ data }: { data: DashboardData }) {
             row.byExtensionYear ?? {},
           )) {
             const language = languageOfExtension(extension);
-            const target = (byGroupYear[language] ??= {});
+            // Plain assignment rather than `??=`, which React Compiler 1.0 does
+            // not yet lower and would silently bail the whole component on.
+            byGroupYear[language] = byGroupYear[language] ?? {};
+            const target = byGroupYear[language];
             for (const [year, lines] of Object.entries(byYear)) {
               target[year] = (target[year] ?? 0) + lines;
             }
