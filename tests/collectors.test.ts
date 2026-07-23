@@ -399,6 +399,15 @@ test("dependencies collector normalizes lockfiles into facts", () => {
   ]);
 });
 
+test("dependencies collector marks a scanned tree with no lockfile", () => {
+  const facts = dependenciesCollector.normalize({ lockfiles: [] });
+
+  // A single presence marker (and no resolved/direct facts) so indexing can
+  // distinguish "scanned, zero dependencies" from a commit that was never
+  // scanned — see the dependencies filter in indexing.
+  expect(facts).toStrictEqual([{ metric: "dependencies.scanned", value: 1 }]);
+});
+
 test("scanFileForTodos counts markers per line", () => {
   const output = scanFileForTodos(
     [
