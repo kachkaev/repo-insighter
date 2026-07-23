@@ -202,15 +202,34 @@ function decimate<T>(rows: readonly T[], maxPoints: number): T[] {
   return result;
 }
 
-/** Top n keys by the latest snapshot's value; the rest fold into "Other". */
+/**
+ * Top n keys by importance; the rest fold into "Other". Importance is the
+ * latest snapshot's value by default — fine when today's series are the ones
+ * worth naming. Pass `rankBy: "peak"` when a series can matter historically yet
+ * be absent now (e.g. a package manager used before a migration): ranking by
+ * each key's peak keeps it a named series across the whole timeline instead of
+ * dropping it into "Other" the moment it disappears from the latest snapshot.
+ */
 function shapeStacked(
   rows: ReadonlyArray<{ date: string; values: Record<string, number> }>,
   maxSeries: number,
+  rankBy: "latest" | "peak" = "latest",
 ): { points: TimePoint[]; seriesKeys: string[]; colors: string[] } {
-  const latest = rows.at(-1)?.values ?? {};
-  const ranked = Object.entries(latest)
-    .toSorted(([, left], [, right]) => right - left)
-    .map(([key]) => key);
+  const weights: Record<string, number> = {};
+  if (rankBy === "peak") {
+    for (const row of rows) {
+      for (const [key, value] of Object.entries(row.values)) {
+        weights[key] = Math.max(weights[key] ?? 0, value);
+      }
+    }
+  } else {
+    for (const [key, value] of Object.entries(rows.at(-1)?.values ?? {})) {
+      weights[key] = value;
+    }
+  }
+  const ranked = Object.keys(weights).toSorted(
+    (left, right) => (weights[right] ?? 0) - (weights[left] ?? 0),
+  );
   const kept = ranked.slice(0, maxSeries);
   const hasOther =
     ranked.length > maxSeries ||
@@ -362,6 +381,9 @@ export function App({ data }: { data: DashboardData }) {
           values: row.byPackageManager,
         })),
         5,
+        // A repo can switch managers over its life (npm/yarn → pnpm), so rank by
+        // peak to keep each one named rather than folding the retired ones away.
+        "peak",
       ),
     [dependencies],
   );
