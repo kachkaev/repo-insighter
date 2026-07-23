@@ -27,6 +27,21 @@ const aiPattern =
 export const deriveContributorKind = (identity: string): ContributorKind =>
   botPattern.test(identity) ? "bot" : aiPattern.test(identity) ? "ai" : "human";
 
+/**
+ * Tidies an auto-derived name for display. The kind badge (🤖 / ✨) already
+ * marks bots and AI agents, so the `[bot]` suffix GitHub bakes into author names
+ * is redundant double-labeling: `renovate[bot]` reads better as `Renovate`.
+ * Strips a trailing `[bot]` and capitalizes the leading letter; leaves names
+ * without the suffix (ordinary people, configured display names) untouched.
+ */
+export const normalizeContributorName = (name: string): string => {
+  const stripped = name.replace(/\s*\[bot\]$/i, "");
+  if (stripped === name || stripped === "") {
+    return name;
+  }
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+};
+
 /** A contributor's canonical, display-ready identity after alias resolution. */
 type ResolvedContributor = {
   /** Prettified canonical email — shown in the contributors table's email column. */
@@ -75,7 +90,7 @@ const bareResolveContributor = (
   const canonicalEmail = prettifyAuthorEmail(entry?.canonicalEmail ?? email);
   return {
     canonicalEmail,
-    label: entry?.displayName ?? canonicalEmail,
+    label: entry?.displayName ?? normalizeContributorName(canonicalEmail),
     displayName: entry?.displayName,
     url: entry?.url,
     kind: entry?.kind ?? deriveContributorKind(`${name ?? ""} <${email}>`),

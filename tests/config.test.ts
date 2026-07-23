@@ -10,6 +10,7 @@ import {
   defaultMaxInCharts,
   deriveContributorKind,
   loadConfig,
+  normalizeContributorName,
   resolveConfig,
 } from "../src/lib/config.ts";
 
@@ -123,6 +124,35 @@ test("deriveContributorKind classifies bots and AI agents", () => {
       "Copilot <198982749+Copilot@users.noreply.github.com>",
     ),
   ).toBe("ai");
+});
+
+test("normalizeContributorName drops the [bot] suffix and capitalizes", () => {
+  expect(normalizeContributorName("renovate[bot]")).toBe("Renovate");
+  expect(normalizeContributorName("dependabot[bot]")).toBe("Dependabot");
+  expect(normalizeContributorName("github-actions[bot]")).toBe(
+    "Github-actions",
+  );
+  expect(normalizeContributorName("Copilot[bot]")).toBe("Copilot");
+});
+
+test("normalizeContributorName leaves ordinary names untouched", () => {
+  expect(normalizeContributorName("alice")).toBe("alice");
+  expect(normalizeContributorName("Alice Smith")).toBe("Alice Smith");
+  expect(normalizeContributorName("alice@example.com")).toBe(
+    "alice@example.com",
+  );
+  // A degenerate "[bot]"-only name would strip to nothing — keep it verbatim.
+  expect(normalizeContributorName("[bot]")).toBe("[bot]");
+});
+
+test("resolveContributor normalizes a bot's auto-derived label", () => {
+  const resolved = resolveConfig({});
+  const contributor = resolved.resolveContributor(
+    "29139614+renovate[bot]@users.noreply.github.com",
+    "renovate[bot]",
+  );
+  expect(contributor.label).toBe("Renovate");
+  expect(contributor.kind).toBe("bot");
 });
 
 test("resolveConfig derives kind when the config omits it", () => {

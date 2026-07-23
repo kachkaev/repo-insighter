@@ -7,7 +7,11 @@ import { Console, Effect } from "effect";
 import { catalogDirName } from "./catalog.ts";
 import { builtInCollectors } from "./collectors/roster.ts";
 import { describesTreeState, type Fact } from "./collectors/types.ts";
-import { loadConfig, type ResolvedConfig } from "./config.ts";
+import {
+  loadConfig,
+  normalizeContributorName,
+  type ResolvedConfig,
+} from "./config.ts";
 import { listCommits, listFirstParentShas, resolveRepoRoot } from "./scan.ts";
 
 const toError = (error: unknown) =>
@@ -307,8 +311,13 @@ const buildDashboardData = (
       added: 0,
       deleted: 0,
     };
-    // A configured displayName wins; otherwise keep the latest non-empty name.
-    bucket.name = resolved.displayName ?? (commit.authorName || bucket.name);
+    // A configured displayName wins; otherwise keep the latest non-empty name,
+    // tidied so a bot's `[bot]` suffix doesn't double up with its kind badge.
+    bucket.name =
+      resolved.displayName ??
+      (commit.authorName
+        ? normalizeContributorName(commit.authorName)
+        : bucket.name);
     bucket.commits += 1;
     bucket.added += row.added;
     bucket.deleted += row.deleted;
