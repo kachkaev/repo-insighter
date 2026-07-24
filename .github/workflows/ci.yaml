@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   checks:
     name: Run checks
@@ -61,6 +65,14 @@ jobs:
             echo 'ℹ️ ℹ️ ℹ️'
             exit 1
           fi
+
+      - name: Load ESLint cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: eslint-${{ github.run_id }}
+          path: node_modules/.cache/eslint
+          restore-keys: |
+            eslint-
 
       - name: Run pnpm lint:eslint
         if: ${{ success() || failure() }}
